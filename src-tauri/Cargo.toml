@@ -1,0 +1,25 @@
+[package]
+name = "genshin-planner"
+version = "0.0.1"
+description = "A Tauri App"
+authors = ["bling-yshs"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "2", features = ["config-json5"] }
+
+[dependencies]
+tauri = { version = "2", features = ["devtools"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4.41"
+tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
+tauri-plugin-fs = "2"
+rquickjs = "0.11.0"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-window-state = "2"
+
