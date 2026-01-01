@@ -1,0 +1,26 @@
+name: 🔄 同步到 CNB
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    name: 🔄 同步到 CNB (Sync to CNB)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 同步到 CNB (Sync to CNB)
+        uses: docker://tencentcom/git-sync
+        env:
+          PLUGIN_TARGET_URL: 'https://cnb.cool/bling-team/genshin-planer.git'
+          PLUGIN_AUTH_TYPE: https
+          PLUGIN_USERNAME: cnb
+          PLUGIN_PASSWORD: ${{ secrets.CNB_GIT_TOKEN }}
+          PLUGIN_FORCE: 'true'

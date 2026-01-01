@@ -1,0 +1,10 @@
+{
+  "name": "script",
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "@types/node": "^24",
+    "json5": "^2.2.3",
+    "tsx": "^4.21.0"
+  }
+}

@@ -1,0 +1,354 @@
+name: 🚀 发布新版本
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # =======================================================
+  # JOB 1: 校验版本号
+  # =======================================================
+  validate:
+    name: 1️⃣ 校验版本号 (Validate version)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    outputs:
+      new_version: ${{ steps.compare.outputs.new_version }}
+      new_tag: ${{ steps.compare.outputs.new_tag }}
+      old_tag: ${{ steps.latest_tag.outputs.tag }}
+
+    steps:
+      - name: 克隆仓库 (Checkout)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: 安装脚本依赖 (Install script dependencies)
+        working-directory: .github/script
+        run: npm install
+
+      - name: 读取 tauri.conf.json5 版本 (Read tauri.conf.json5 version)
+        id: tauri_version
+        working-directory: .github/script
+        run: |
+          VERSION=$(npx tsx read-version.ts)
+          echo "app_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "读取到版本: $VERSION"
+
+      - name: 获取最新的 Git Tag (Get latest Git tag)
+        id: latest_tag
+        run: |
+          LATEST_TAG=$(git tag | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n 1 || echo "v0.0.0")
+          echo "找到的最新的语义化版本 Tag: $LATEST_TAG"
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: 比较版本号 (Compare versions)
+        id: compare
+        run: |
+          APP_VERSION=${{ steps.tauri_version.outputs.app_version }}
+          LATEST_TAG_VERSION=${{ steps.latest_tag.outputs.tag }}
+          LATEST_TAG_VERSION_NUM=${LATEST_TAG_VERSION#v}
+
+          echo "App 版本 (Current): $APP_VERSION"
+          echo "Git Tag 版本 (Latest): $LATEST_TAG_VERSION_NUM"
+
+          if [ "$APP_VERSION" = "$LATEST_TAG_VERSION_NUM" ]; then
+            echo "::error::tauri.conf.json5 版本 ($APP_VERSION) 等于最新的 Tag 版本 ($LATEST_TAG_VERSION_NUM)。请在发布前更新版本号。"
+            exit 1
+          fi
+
+          LATEST_VERSION=$(printf "%s\n%s" "$APP_VERSION" "$LATEST_TAG_VERSION_NUM" | sort -V | tail -n 1)
+
+          if [ "$LATEST_VERSION" != "$APP_VERSION" ]; then
+            echo "::error::tauri.conf.json5 版本 ($APP_VERSION) 小于最新的 Tag 版本 ($LATEST_TAG_VERSION_NUM)。请在发布前更新版本号。"
+            exit 1
+          fi
+
+          echo "版本校验通过!"
+          echo "new_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "new_tag=v$APP_VERSION" >> $GITHUB_OUTPUT
+
+  # =======================================================
+  # JOB 2: 构建 Windows
+  # =======================================================
+  build-windows:
+    name: 2️⃣ 构建 Windows (Build Windows)
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+
+      - name: 安装 Rust (Install Rust)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 缓存 (Rust cache)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: 安装 pnpm (Install pnpm)
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: 安装前端依赖 (Install frontend dependencies)
+        run: pnpm install
+
+      - name: 构建应用 (Build app)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build
+
+      - name: 上传构建产物 (Upload build artifacts)
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-release
+          path: |
+            ./src-tauri/target/release/bundle/nsis/*.exe
+            ./src-tauri/target/release/bundle/nsis/*.sig
+          if-no-files-found: error
+
+  # =======================================================
+  # JOB 3: 构建 Linux
+  # =======================================================
+  build-linux:
+    name: 2️⃣ 构建 Linux (Build Linux)
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+
+      - name: 安装系统依赖 (Install system dependencies)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: 安装 Rust (Install Rust)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 缓存 (Rust cache)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: 安装 pnpm (Install pnpm)
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: 安装前端依赖 (Install frontend dependencies)
+        run: pnpm install
+
+      - name: 构建应用 (Build app)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build
+
+      - name: 上传构建产物 (Upload build artifacts)
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-release
+          path: |
+            ./src-tauri/target/release/bundle/appimage/*.AppImage
+            ./src-tauri/target/release/bundle/appimage/*.sig
+            ./src-tauri/target/release/bundle/deb/*.deb
+            ./src-tauri/target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
+
+  # =======================================================
+  # JOB 4: 构建 macOS
+  # =======================================================
+  build-macos:
+    name: 2️⃣ 构建 macOS (Build macOS)
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: macos-latest
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+
+      - name: 安装 Rust (Install Rust)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 缓存 (Rust cache)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: 安装 pnpm (Install pnpm)
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: 安装前端依赖 (Install frontend dependencies)
+        run: pnpm install
+
+      - name: 构建应用 (Build app)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build
+
+      - name: 上传构建产物 (Upload build artifacts)
+        uses: actions/upload-artifact@v6
+        with:
+          name: macos-release
+          path: |
+            ./src-tauri/target/release/bundle/macos/*.app.tar.gz
+            ./src-tauri/target/release/bundle/macos/*.sig
+            ./src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  # =======================================================
+  # JOB 5: 生成 update.json
+  # =======================================================
+  generate-update-json:
+    name: 3️⃣ 生成 update.json (Generate update.json)
+    if: github.ref == 'refs/heads/main'
+    needs: [validate, build-windows, build-linux, build-macos]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+
+      - name: 下载全部 Artifact (Download all artifacts)
+        uses: actions/download-artifact@v7
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: 安装脚本依赖 (Install script dependencies)
+        working-directory: .github/script
+        run: npm install
+
+      - name: 生成 update.json (Generate update.json)
+        working-directory: .github/script
+        run: |
+          VERSION=${{ needs.validate.outputs.new_version }}
+          TAG=${{ needs.validate.outputs.new_tag }}
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+
+          npx tsx gen-update.ts \
+            --version "$VERSION" \
+            --changelog "Release ${TAG}" \
+            --artifacts-dir "../../artifacts" \
+            --base-url "$BASE_URL"
+
+      - name: 上传 update.json (Upload update.json)
+        uses: actions/upload-artifact@v6
+        with:
+          name: update-json
+          path: ./artifacts/update.json
+          if-no-files-found: error
+
+  # =======================================================
+  # JOB 6: 发布到 GitHub
+  # =======================================================
+  release-github:
+    name: 4️⃣ 发布到 GitHub (Release to GitHub)
+    if: github.ref == 'refs/heads/main'
+    needs: [validate, build-windows, build-linux, build-macos, generate-update-json]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 下载全部 Artifact (Download all artifacts)
+        uses: actions/download-artifact@v7
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 创建 GitHub Release (Create GitHub Release)
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.validate.outputs.new_tag }}
+          name: ${{ needs.validate.outputs.new_tag }}
+          body: |
+            ## 🎉 ${{ needs.validate.outputs.new_tag }}
+
+            ---
+            **Full Changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${{ needs.validate.outputs.old_tag }}...${{ needs.validate.outputs.new_tag }}
+          prerelease: false
+          artifacts: ./artifacts/*
+
+  # =======================================================
+  # JOB 7: 发布到 CNB
+  # =======================================================
+  release-cnb:
+    name: 5️⃣ 发布到 CNB (Release to CNB)
+    if: github.ref == 'refs/heads/main'
+    needs: [validate, build-windows, build-linux, build-macos, generate-update-json]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+
+      - name: 下载全部 Artifact (Download all artifacts)
+        uses: actions/download-artifact@v7
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: 安装脚本依赖 (Install script dependencies)
+        working-directory: .github/script
+        run: npm install
+
+      - name: 发布到 CNB (Release to CNB)
+        working-directory: .github/script
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          TAG=${{ needs.validate.outputs.new_tag }}
+          CHANGELOG="Release ${TAG}"
+
+          # 收集所有文件
+          FILES=$(find ../../artifacts -type f | tr '\n' ' ')
+
+          npx tsx release-cnb.ts \
+            --token "$CNB_TOKEN" \
+            --tag "$TAG" \
+            --changelog "$CHANGELOG" \
+            --files $FILES

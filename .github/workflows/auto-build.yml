@@ -132,10 +132,10 @@ jobs:
         with:
           name: linux-${{ github.sha }}
           path: |
+            ./src-tauri/target/release/bundle/appimage/*.AppImage
+            ./src-tauri/target/release/bundle/appimage/*.sig
             ./src-tauri/target/release/bundle/deb/*.deb
             ./src-tauri/target/release/bundle/rpm/*.rpm
-            ./src-tauri/target/release/bundle/deb/*.sig
-            ./src-tauri/target/release/bundle/rpm/*.sig
           if-no-files-found: error
 
   build-macos:
@@ -195,8 +195,9 @@ jobs:
         with:
           name: macos-${{ github.sha }}
           path: |
+            ./src-tauri/target/release/bundle/macos/*.app.tar.gz
+            ./src-tauri/target/release/bundle/macos/*.sig
             ./src-tauri/target/release/bundle/dmg/*.dmg
-            ./src-tauri/target/release/bundle/dmg/*.sig
           if-no-files-found: error
 
   upload-to-release-alpha:
