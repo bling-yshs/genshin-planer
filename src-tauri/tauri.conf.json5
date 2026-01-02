@@ -1,6 +1,6 @@
 {
   "productName": "genshin-planner",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "identifier": "com.genshin-planner.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
