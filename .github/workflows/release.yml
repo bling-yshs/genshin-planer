@@ -3,6 +3,9 @@ name: 🚀 发布新版本
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   # =======================================================
   # JOB 1: 校验版本号
@@ -339,7 +342,7 @@ jobs:
       - name: 发布到 CNB (Release to CNB)
         working-directory: .github/script
         env:
-          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_GIT_TOKEN: ${{ secrets.CNB_GIT_TOKEN }}
         run: |
           TAG=${{ needs.validate.outputs.new_tag }}
           CHANGELOG="Release ${TAG}"
@@ -348,7 +351,7 @@ jobs:
           FILES=$(find ../../artifacts -type f | tr '\n' ' ')
 
           npx tsx release-cnb.ts \
-            --token "$CNB_TOKEN" \
+            --token "CNB_GIT_TOKEN" \
             --tag "$TAG" \
             --changelog "$CHANGELOG" \
             --files $FILES
