@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   # =======================================================
@@ -234,13 +235,16 @@ jobs:
           if-no-files-found: error
 
   # =======================================================
-  # JOB 5: 生成 update.json
+  # JOB 5: 生成元数据
   # =======================================================
-  generate-update-json:
-    name: 3️⃣ 生成 update.json (Generate update.json)
+  generate-metadata:
+    name: 3️⃣ 生成元数据 (Generate metadata)
     if: github.ref == 'refs/heads/main'
     needs: [validate, build-windows, build-linux, build-macos]
     runs-on: ubuntu-22.04
+    outputs:
+      changelog: ${{ steps.changelog_reader.outputs.changes }}
+      changelog_link: ${{ steps.changelog_link.outputs.url }}
 
     steps:
       - name: 检出代码 (Checkout)
@@ -261,16 +265,29 @@ jobs:
         working-directory: .github/script
         run: npm install
 
+      - name: 读取 Changelog (Read Changelog)
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2.2.3
+        with:
+          version: 'Unreleased'
+          path: './CHANGELOG.md'
+
+      - name: 生成 Full Changelog 链接 (Generate Full Changelog link)
+        id: changelog_link
+        run: |
+          echo "url=${{ github.server_url }}/${{ github.repository }}/compare/${{ needs.validate.outputs.old_tag }}...${{ needs.validate.outputs.new_tag }}" >> $GITHUB_OUTPUT
+
       - name: 生成 update.json (Generate update.json)
         working-directory: .github/script
         run: |
           VERSION=${{ needs.validate.outputs.new_version }}
           TAG=${{ needs.validate.outputs.new_tag }}
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+          CHANGELOG='${{ steps.changelog_reader.outputs.changes }}'
 
           npx tsx gen-update.ts \
             --version "$VERSION" \
-            --changelog "Release ${TAG}" \
+            --changelog "$CHANGELOG" \
             --artifacts-dir "../../artifacts" \
             --base-url "$BASE_URL"
 
@@ -287,43 +304,7 @@ jobs:
   release-github:
     name: 4️⃣ 发布到 GitHub (Release to GitHub)
     if: github.ref == 'refs/heads/main'
-    needs: [validate, build-windows, build-linux, build-macos, generate-update-json]
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: 下载全部 Artifact (Download all artifacts)
-        uses: actions/download-artifact@v7
-        with:
-          path: ./artifacts
-          merge-multiple: true
-
-      - name: 整理文件 (Flatten files)
-        run: |
-          mkdir -p ./release-files
-          find ./artifacts -type f -exec cp {} ./release-files/ \;
-          ls -la ./release-files/
-
-      - name: 创建 GitHub Release (Create GitHub Release)
-        uses: ncipollo/release-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ needs.validate.outputs.new_tag }}
-          name: ${{ needs.validate.outputs.new_tag }}
-          body: |
-            ## 🎉 ${{ needs.validate.outputs.new_tag }}
-
-            ---
-            **Full Changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${{ needs.validate.outputs.old_tag }}...${{ needs.validate.outputs.new_tag }}
-          prerelease: false
-          artifacts: ./release-files/*
-
-  # =======================================================
-  # JOB 7: 发布到 CNB
-  # =======================================================
-  release-cnb:
-    name: 5️⃣ 发布到 CNB (Release to CNB)
-    if: github.ref == 'refs/heads/main'
-    needs: [validate, build-windows, build-linux, build-macos, generate-update-json]
+    needs: [validate, build-windows, build-linux, build-macos, generate-metadata]
     runs-on: ubuntu-22.04
 
     steps:
@@ -336,6 +317,12 @@ jobs:
           path: ./artifacts
           merge-multiple: true
 
+      - name: 整理文件 (Flatten files)
+        run: |
+          mkdir -p ./release-files
+          find ./artifacts -type f -exec cp {} ./release-files/ \;
+          ls -la ./release-files/
+
       - name: 安装 Node.js (Install Node.js)
         uses: actions/setup-node@v6
         with:
@@ -345,19 +332,177 @@ jobs:
         working-directory: .github/script
         run: npm install
 
+      - name: 生成 Release Body (Generate Release Body)
+        id: release_body
+        working-directory: .github/script
+        run: |
+          TAG=${{ needs.validate.outputs.new_tag }}
+          VERSION=${{ needs.validate.outputs.new_version }}
+          CHANGELOG='${{ needs.generate-metadata.outputs.changelog }}'
+          CHANGELOG_LINK='${{ needs.generate-metadata.outputs.changelog_link }}'
+
+          BODY=$(npx tsx gen-release-body.ts \
+            --version "$VERSION" \
+            --tag "$TAG" \
+            --changelog "$CHANGELOG" \
+            --changelog-link "$CHANGELOG_LINK" \
+            --platform "github")
+
+          # 使用 heredoc 写入多行内容
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 创建 GitHub Release (Create GitHub Release)
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.validate.outputs.new_tag }}
+          name: ${{ needs.validate.outputs.new_tag }}
+          body: ${{ steps.release_body.outputs.body }}
+          prerelease: false
+          artifacts: ./release-files/*
+
+  # =======================================================
+  # JOB 7: 发布到 CNB
+  # =======================================================
+  release-cnb:
+    name: 5️⃣ 发布到 CNB (Release to CNB)
+    if: github.ref == 'refs/heads/main'
+    needs: [validate, build-windows, build-linux, build-macos, generate-metadata]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v6
+
+      - name: 下载全部 Artifact (Download all artifacts)
+        uses: actions/download-artifact@v7
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 整理文件 (Flatten files)
+        run: |
+          mkdir -p ./release-files
+          find ./artifacts -type f -exec cp {} ./release-files/ \;
+          ls -la ./release-files/
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: 安装脚本依赖 (Install script dependencies)
+        working-directory: .github/script
+        run: npm install
+
+      - name: 生成 Release Body (Generate Release Body)
+        id: release_body
+        working-directory: .github/script
+        run: |
+          TAG=${{ needs.validate.outputs.new_tag }}
+          VERSION=${{ needs.validate.outputs.new_version }}
+          CHANGELOG='${{ needs.generate-metadata.outputs.changelog }}'
+          CHANGELOG_LINK='${{ needs.generate-metadata.outputs.changelog_link }}'
+
+          BODY=$(npx tsx gen-release-body.ts \
+            --version "$VERSION" \
+            --tag "$TAG" \
+            --changelog "$CHANGELOG" \
+            --changelog-link "$CHANGELOG_LINK" \
+            --platform "cnb")
+
+          # 使用 heredoc 写入多行内容
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: 发布到 CNB (Release to CNB)
         working-directory: .github/script
         env:
-          CNB_GIT_TOKEN: ${{ secrets.CNB_GIT_TOKEN }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
         run: |
           TAG=${{ needs.validate.outputs.new_tag }}
-          CHANGELOG="Release ${TAG}"
+          CHANGELOG='${{ steps.release_body.outputs.body }}'
 
           # 收集所有文件
-          FILES=$(find ../../artifacts -type f | tr '\n' ' ')
+          FILES=$(find ../../release-files -type f | tr '\n' ' ')
 
           npx tsx release-cnb.ts \
-            --token "$CNB_GIT_TOKEN" \
+            --token "$CNB_TOKEN" \
             --tag "$TAG" \
             --changelog "$CHANGELOG" \
             --files $FILES
+
+  # =======================================================
+  # JOB 8: 更新 CHANGELOG 并创建 PR
+  # =======================================================
+  update-changelog:
+    name: 6️⃣ 更新 CHANGELOG (Update CHANGELOG)
+    if: github.ref == 'refs/heads/main'
+    needs: [validate, release-github]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 克隆仓库 (Checkout)
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 配置 Git (Configure Git)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 更新 CHANGELOG.md (Update CHANGELOG.md)
+        env:
+          NEW_VERSION: ${{ needs.validate.outputs.new_version }}
+          NEW_TAG: ${{ needs.validate.outputs.new_tag }}
+          OLD_TAG: ${{ needs.validate.outputs.old_tag }}
+        run: |
+          TODAY=$(date +'%Y-%m-%d')
+          REPO_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          FILE="./CHANGELOG.md"
+
+          # 1. 准备新链接
+          NEW_UNRELEASED_LINK_LINE="[Unreleased]: ${REPO_URL}/compare/${NEW_TAG}...HEAD"
+          NEW_VERSION_LINK_LINE="[${NEW_VERSION}]: ${REPO_URL}/commits/${NEW_TAG}"
+
+          # 2. 替换 [Unreleased] 标题为新版本标题
+          sed -i.bak "s|## \[Unreleased\]|## \[${NEW_VERSION}\] - ${TODAY}|" $FILE
+
+          # 3. 在文件主标题下方添加新的 [Unreleased] 块
+          sed -i.bak "/^# .*/a \\\
+          \\\
+          ## [Unreleased]
+          " $FILE
+
+          # 4. 替换旧的 Unreleased 链接
+          sed -i.bak "s|^\[Unreleased\]:.*|${NEW_UNRELEASED_LINK_LINE}|" $FILE
+
+          # 5. 在 Unreleased 链接下面添加新版本的链接
+          sed -i.bak "/^\[Unreleased\]:/a ${NEW_VERSION_LINK_LINE}" $FILE
+
+          # 6. 删除备份文件
+          rm -f $FILE.bak
+
+          echo "--- CHANGELOG.md after update: ---"
+          cat $FILE
+          echo "-----------------------------------"
+
+      - name: 创建 PR (Create PR)
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: 自动更新 CHANGELOG.md v${{ needs.validate.outputs.new_version }}"
+          branch: "chore/update-changelog-${{ needs.validate.outputs.new_version }}"
+          base: "main"
+          title: "chore: 自动更新 CHANGELOG.md v${{ needs.validate.outputs.new_version }}"
+          body: |
+            自动更新 CHANGELOG.md v${{ needs.validate.outputs.new_version }}
+
+            - 将 `[Unreleased]` 重命名为 `[${{ needs.validate.outputs.new_version }}]`
+            - 添加新的空 `[Unreleased]` 块
+            - 更新底部链接
+          delete-branch: true
