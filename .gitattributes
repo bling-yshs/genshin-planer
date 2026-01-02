@@ -1,0 +1,3 @@
+# 锁文件标记为二进制，diff 时不显示具体内容
+pnpm-lock.yaml binary
+src-tauri/Cargo.lock binary

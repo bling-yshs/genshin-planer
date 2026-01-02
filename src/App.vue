@@ -67,6 +67,9 @@
             <Button variant="destructive" size="sm" @click="clearTestData">
               🗑️ 清除数据
             </Button>
+            <Button size="sm" variant="outline" :disabled="isCheckingUpdate" @click="handleCheckUpdate(false)">
+              🔄 {{ isCheckingUpdate ? '检查中...' : '检查更新' }}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -511,6 +514,44 @@
       v-model:open="showCalculatorDialog"
       @add-materials="handleAddCalculatedMaterials"
     />
+
+    <!-- 更新提示 Dialog -->
+    <Dialog v-model:open="showUpdateDialog">
+      <DialogContent class="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>🎉 发现新版本 v{{ updateAvailable?.version }}</DialogTitle>
+        </DialogHeader>
+
+        <div class="flex-grow overflow-y-auto py-4 space-y-4">
+          <div v-if="updateAvailable?.body" class="prose prose-sm dark:prose-invert max-w-none" v-html="updateBodyHtml" />
+
+          <!-- 下载进度 -->
+          <div v-if="isDownloadingUpdate" class="space-y-2">
+            <div class="text-sm text-muted-foreground">
+              正在下载更新...
+            </div>
+            <div class="w-full bg-muted rounded-full h-2">
+              <div
+                class="bg-primary h-2 rounded-full transition-all duration-300"
+                :style="{ width: updateProgress.total > 0 ? `${(updateProgress.downloaded / updateProgress.total) * 100}%` : '0%' }"
+              />
+            </div>
+            <div class="text-xs text-muted-foreground text-right">
+              {{ updateProgress.total > 0 ? `${Math.round(updateProgress.downloaded / 1024 / 1024 * 100) / 100} / ${Math.round(updateProgress.total / 1024 / 1024 * 100) / 100} MB` : '准备中...' }}
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 flex-shrink-0">
+          <Button :disabled="isDownloadingUpdate" @click="handleDownloadAndInstall">
+            {{ isDownloadingUpdate ? '下载中...' : '立即更新' }}
+          </Button>
+          <Button variant="outline" :disabled="isDownloadingUpdate" @click="showUpdateDialog = false">
+            稍后再说
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -519,7 +560,8 @@ import type { Avatar } from '@/entity/calculator/Avatar'
 import type { PlanItem, SavedPlan } from '@/entity/InventoryItem.ts'
 import type { QrLogin } from '@/entity/remote/QrLogin.ts'
 import type { CalculatedMaterial } from '@/entity/wiki/WikiItem'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { marked } from 'marked'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import qualityBlue from '@/assets/level_background/UI_QUALITY_BLUE.png'
 import qualityGreen from '@/assets/level_background/UI_QUALITY_GREEN.png'
@@ -533,6 +575,7 @@ import AvatarCalculatorDialog from '@/components/calculator/AvatarCalculatorDial
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -540,7 +583,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-
 import { Input } from '@/components/ui/input'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Toaster } from '@/components/ui/sonner'
@@ -559,6 +601,7 @@ import {
   fetchWeaponList,
   generateQRCode,
 } from '@/service/MHYService.ts'
+import { checkForUpdate, downloadAndInstallUpdate, relaunchApp } from '@/service/UpdateService'
 import { useAuthStore } from '@/store/store'
 import 'vue-sonner/style.css'
 
@@ -632,6 +675,20 @@ const isLoadingAvatars = ref(false)
 
 // 角色材料计算器状态
 const showCalculatorDialog = ref(false)
+
+// 更新检查状态
+const showUpdateDialog = ref(false)
+const updateAvailable = shallowRef<Awaited<ReturnType<typeof checkForUpdate>>>(null)
+const isCheckingUpdate = ref(false)
+const isDownloadingUpdate = ref(false)
+const updateProgress = ref({ downloaded: 0, total: 0 })
+
+// 更新内容 markdown 渲染
+const updateBodyHtml = computed(() => {
+  if (!updateAvailable.value?.body)
+    return ''
+  return marked(updateAvailable.value.body)
+})
 
 // 计算属性
 const filteredItems = computed(() => {
@@ -1491,7 +1548,87 @@ async function calculateAvatarMaterials(avatar: Avatar) {
 onMounted(async () => {
   await loadItemsData()
   loadPlanFromStorage()
+  // 启动后自动检查更新
+  handleCheckUpdate(true)
 })
+
+// ============ 更新检查方法 ============
+
+// 检查更新
+async function handleCheckUpdate(silent = false) {
+  if (isCheckingUpdate.value)
+    return
+
+  isCheckingUpdate.value = true
+  try {
+    const update = await checkForUpdate()
+    if (update) {
+      updateAvailable.value = update
+      showUpdateDialog.value = true
+      toast('发现新版本', {
+        description: `版本 ${update.version} 可用`,
+        duration: 5000,
+      })
+    }
+    else if (!silent) {
+      toast('已是最新版本', { duration: 3000 })
+    }
+  }
+  catch (error) {
+    console.error('检查更新失败:', error)
+    if (!silent) {
+      toast('检查更新失败', {
+        description: error instanceof Error ? error.message : '未知错误',
+        duration: 5000,
+      })
+    }
+  }
+  finally {
+    isCheckingUpdate.value = false
+  }
+}
+
+// 下载并安装更新
+async function handleDownloadAndInstall() {
+  if (!updateAvailable.value || isDownloadingUpdate.value)
+    return
+
+  isDownloadingUpdate.value = true
+  updateProgress.value = { downloaded: 0, total: 0 }
+
+  try {
+    toast('正在下载更新...', { duration: 2000 })
+
+    await downloadAndInstallUpdate(updateAvailable.value, (progress) => {
+      if (progress.event === 'Started' && progress.contentLength) {
+        updateProgress.value.total = progress.contentLength
+      }
+      else if (progress.event === 'Progress' && progress.downloaded) {
+        updateProgress.value.downloaded += progress.downloaded
+      }
+      else if (progress.event === 'Finished') {
+        toast('下载完成，正在安装...', { duration: 2000 })
+      }
+    })
+
+    // Windows 上安装时应用会自动退出，这是正常行为
+    // 其他平台需要手动重启
+    toast('更新安装完成，即将重启应用...', { duration: 3000 })
+    setTimeout(async () => {
+      await relaunchApp()
+    }, 1000)
+  }
+  catch (error) {
+    console.error('下载安装更新失败:', error)
+    toast('更新失败', {
+      description: error instanceof Error ? error.message : '未知错误',
+      duration: 5000,
+    })
+  }
+  finally {
+    isDownloadingUpdate.value = false
+  }
+}
 </script>
 
 <style scoped>
