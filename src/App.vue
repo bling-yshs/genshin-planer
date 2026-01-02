@@ -55,8 +55,8 @@
             <Button size="sm" @click="openLoginQRCode">
               📲 扫码登录
             </Button>
-            <Button size="sm" variant="default" @click="fetchAllAvatarsInventory">
-              📦 获取背包物品列表
+            <Button size="sm" variant="default" :disabled="inventoryProgress.isLoading" @click="fetchAllAvatarsInventory">
+              📦 {{ inventoryProgress.isLoading ? '获取中...' : '获取背包物品列表' }}
             </Button>
             <Button size="sm" variant="outline" @click="testFn">
               🧪 测试
@@ -70,6 +70,52 @@
             <Button size="sm" variant="outline" :disabled="isCheckingUpdate" @click="handleCheckUpdate(false)">
               🔄 {{ isCheckingUpdate ? '检查中...' : '检查更新' }}
             </Button>
+          </div>
+          <!-- 获取背包物品进度条 -->
+          <div v-if="inventoryProgress.isLoading" class="mt-3">
+            <div class="flex w-full items-start">
+              <template v-for="(item, index) in inventorySteps" :key="item.step">
+                <!-- 连线（除了第一个） -->
+                <div
+                  v-if="index > 0"
+                  class="flex-1 h-0.5 mt-2.5 transition-colors duration-300"
+                  :class="item.step <= inventoryProgress.currentStep ? 'bg-primary' : 'bg-muted'"
+                />
+                <!-- 步骤点 -->
+                <div class="flex flex-col items-center">
+                  <div
+                    class="size-5 rounded-full border-2 flex items-center justify-center transition-all duration-300"
+                    :class="[
+                      item.step < inventoryProgress.currentStep ? 'border-primary bg-primary' : '',
+                      item.step === inventoryProgress.currentStep ? 'border-primary bg-background' : '',
+                      item.step > inventoryProgress.currentStep ? 'border-muted bg-background' : '',
+                    ]"
+                  >
+                    <!-- 已完成：打勾 -->
+                    <svg v-if="item.step < inventoryProgress.currentStep" class="size-3 text-primary-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                    </svg>
+                    <!-- 进行中：转圈 -->
+                    <svg v-else-if="item.step === inventoryProgress.currentStep" class="size-3 text-primary" style="animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <!-- 未开始：小圆点 -->
+                    <span v-else class="size-1.5 rounded-full bg-muted" />
+                  </div>
+                  <span
+                    class="mt-1.5 text-[10px] font-medium transition-colors duration-300 whitespace-nowrap"
+                    :class="[
+                      item.step < inventoryProgress.currentStep ? 'text-foreground' : '',
+                      item.step === inventoryProgress.currentStep ? 'text-primary' : '',
+                      item.step > inventoryProgress.currentStep ? 'text-muted-foreground' : '',
+                    ]"
+                  >
+                    {{ item.title }}
+                  </span>
+                </div>
+              </template>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -676,6 +722,21 @@ const isLoadingAvatars = ref(false)
 // 角色材料计算器状态
 const showCalculatorDialog = ref(false)
 
+// 获取背包物品进度条状态
+const inventoryProgress = ref({
+  isLoading: false,
+  currentStep: 0, // 0=未开始, 1-5=各阶段
+})
+
+// 步骤定义
+const inventorySteps = [
+  { step: 1, title: '获取角色列表' },
+  { step: 2, title: '获取武器列表' },
+  { step: 3, title: '计算武器材料' },
+  { step: 4, title: '计算角色材料' },
+  { step: 5, title: '完成' },
+]
+
 // 更新检查状态
 const showUpdateDialog = ref(false)
 const updateAvailable = shallowRef<Awaited<ReturnType<typeof checkForUpdate>>>(null)
@@ -772,9 +833,10 @@ async function fetchAllAvatarsInventory() {
     return
   }
 
-  try {
-    toast('正在获取全角色列表...', { duration: 2000 })
+  // 初始化进度条
+  inventoryProgress.value = { isLoading: true, currentStep: 1 }
 
+  try {
     // 获取全角色列表
     const avatarList = await fetchAllAvatarList()
 
@@ -784,14 +846,13 @@ async function fetchAllAvatarsInventory() {
     )
 
     console.log(`全角色列表: ${avatarList.total} 个，过滤后: ${validAvatars.length} 个`)
-
-    toast('正在获取全武器列表...', { duration: 2000 })
+    inventoryProgress.value = { isLoading: true, currentStep: 2 }
 
     // 获取所有类型的武器
     const allWeapons = await fetchWeaponList()
     console.log(`全武器列表: ${allWeapons.length} 把`)
 
-    toast(`正在计算 ${validAvatars.length} 个角色 + ${allWeapons.length} 把武器的材料...`, { duration: 3000 })
+    inventoryProgress.value = { isLoading: true, currentStep: 3 }
 
     // 将所有角色转换为计算请求格式
     const avatarComputeItems = validAvatars.map(avatar => convertAvatarToBatchComputeItem(avatar))
@@ -814,15 +875,13 @@ async function fetchAllAvatarsInventory() {
       },
     )
     console.log('武器计算结果:', weaponResult)
-    toast('武器材料计算完成')
 
     // 2. 等待 1 秒
     const apiDelay = 1000
-    toast(`正在等待 API 冷却 (${apiDelay / 1000}秒)...`, { duration: apiDelay })
     await new Promise(resolve => setTimeout(resolve, apiDelay))
 
     // 3. 再获取角色消耗
-    toast(`正在计算 ${validAvatars.length} 个角色的材料...`, { duration: 3000 })
+    inventoryProgress.value = { isLoading: true, currentStep: 4 }
     const avatarResult = await fetchBatchCompute(
       tokens.uid,
       avatarComputeItems,
@@ -866,9 +925,11 @@ async function fetchAllAvatarsInventory() {
       actualNum: item.lack_num === 0 ? item.num : item.num - item.lack_num,
     }))
 
+    inventoryProgress.value = { isLoading: true, currentStep: 5 }
+
     toast('背包物品列表获取成功！', {
       description: `${validAvatars.length} 个角色 + ${allWeapons.length} 把武器，共 ${items.value.length} 种物品`,
-      duration: 5000,
+      duration: 3000,
     })
 
     // 保存到缓存
@@ -880,6 +941,12 @@ async function fetchAllAvatarsInventory() {
       description: error instanceof Error ? error.message : '未知错误',
       duration: 5000,
     })
+  }
+  finally {
+    // 延迟隐藏进度条，让用户看到完成状态
+    setTimeout(() => {
+      inventoryProgress.value = { isLoading: false, currentStep: 0 }
+    }, 800)
   }
 }
 
@@ -1657,5 +1724,15 @@ async function handleDownloadAndInstall() {
 
 .scrollbar-overlay::-webkit-scrollbar-thumb:hover {
   background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* 转圈动画 */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
