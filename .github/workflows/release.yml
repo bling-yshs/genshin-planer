@@ -351,7 +351,7 @@ jobs:
           FILES=$(find ../../artifacts -type f | tr '\n' ' ')
 
           npx tsx release-cnb.ts \
-            --token "CNB_GIT_TOKEN" \
+            --token "$CNB_GIT_TOKEN" \
             --tag "$TAG" \
             --changelog "$CHANGELOG" \
             --files $FILES
