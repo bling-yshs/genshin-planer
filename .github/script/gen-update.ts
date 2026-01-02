@@ -67,16 +67,22 @@ function parseArgs(): { version: string, changelog: string, artifactsDir: string
 }
 
 /**
- * 查找文件
+ * 递归查找文件
  */
-function findFile(dir: string, pattern: RegExp): string | null {
+function findFileRecursive(dir: string, pattern: RegExp): string | null {
   if (!fs.existsSync(dir))
     return null
 
-  const files = fs.readdirSync(dir)
-  for (const file of files) {
-    if (pattern.test(file)) {
-      return path.join(dir, file)
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      const found = findFileRecursive(fullPath, pattern)
+      if (found)
+        return found
+    }
+    else if (pattern.test(entry.name)) {
+      return fullPath
     }
   }
   return null
@@ -109,8 +115,8 @@ async function main() {
   }
 
   // Windows NSIS (.exe)
-  const windowsExe = findFile(artifactsDir, /\.exe$/i)
-  const windowsSig = findFile(artifactsDir, /\.exe\.sig$/i)
+  const windowsExe = findFileRecursive(artifactsDir, /\.exe$/i)
+  const windowsSig = findFileRecursive(artifactsDir, /\.exe\.sig$/i)
   if (windowsExe && windowsSig) {
     const fileName = path.basename(windowsExe)
     updateJson.platforms['windows-x86_64'] = {
@@ -121,8 +127,8 @@ async function main() {
   }
 
   // Linux AppImage
-  const linuxAppImage = findFile(artifactsDir, /\.AppImage$/i)
-  const linuxAppImageSig = findFile(artifactsDir, /\.AppImage\.sig$/i)
+  const linuxAppImage = findFileRecursive(artifactsDir, /\.AppImage$/i)
+  const linuxAppImageSig = findFileRecursive(artifactsDir, /\.AppImage\.sig$/i)
   if (linuxAppImage && linuxAppImageSig) {
     const fileName = path.basename(linuxAppImage)
     updateJson.platforms['linux-x86_64'] = {
@@ -133,8 +139,8 @@ async function main() {
   }
 
   // macOS (.app.tar.gz)
-  const macosApp = findFile(artifactsDir, /\.app\.tar\.gz$/i)
-  const macosAppSig = findFile(artifactsDir, /\.app\.tar\.gz\.sig$/i)
+  const macosApp = findFileRecursive(artifactsDir, /\.app\.tar\.gz$/i)
+  const macosAppSig = findFileRecursive(artifactsDir, /\.app\.tar\.gz\.sig$/i)
   if (macosApp && macosAppSig) {
     const fileName = path.basename(macosApp)
     updateJson.platforms['darwin-x86_64'] = {

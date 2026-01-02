@@ -297,6 +297,12 @@ jobs:
           path: ./artifacts
           merge-multiple: true
 
+      - name: 整理文件 (Flatten files)
+        run: |
+          mkdir -p ./release-files
+          find ./artifacts -type f -exec cp {} ./release-files/ \;
+          ls -la ./release-files/
+
       - name: 创建 GitHub Release (Create GitHub Release)
         uses: ncipollo/release-action@v1
         with:
@@ -309,7 +315,7 @@ jobs:
             ---
             **Full Changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${{ needs.validate.outputs.old_tag }}...${{ needs.validate.outputs.new_tag }}
           prerelease: false
-          artifacts: ./artifacts/*
+          artifacts: ./release-files/*
 
   # =======================================================
   # JOB 7: 发布到 CNB

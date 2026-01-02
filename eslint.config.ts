@@ -3,7 +3,7 @@ import antfu from '@antfu/eslint-config'
 export default antfu({
   // 启用 TypeScript 支持
   typescript: true,
-  
+
   // 启用 Vue 支持
   vue: {
     // 关闭 script 必须在 template 上面的规则
@@ -13,14 +13,14 @@ export default antfu({
       'vue/html-end-tags': 'off',
     },
   },
-  
+
   // 自定义样式规则
   stylistic: {
     indent: 2, // 2 空格缩进
     quotes: 'single', // 单引号
     semi: false, // 无分号
   },
-  
+
   // 忽略的文件/目录
   ignores: [
     '**/dist/**',
@@ -30,7 +30,9 @@ export default antfu({
     'src/lib/**',
     'src-tauri/**',
     'package.json',
+    'package.json5',
     '*.md',
+    '.github/workflows/**',
   ],
   rules: {
     'no-console': 'off',
