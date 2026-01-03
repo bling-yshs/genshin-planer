@@ -4,7 +4,11 @@
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-01-03
+
 # Added
+
+## [Unreleased]
 
 - app 支持自动更新
 
@@ -18,4 +22,5 @@
 - 支持养成计划管理
 
 [Unreleased]: https://github.com/bling-yshs/genshin-planer/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/bling-yshs/genshin-planer/commits/v0.0.5
 [0.0.5]: https://github.com/bling-yshs/genshin-planer/commits/v0.0.5
