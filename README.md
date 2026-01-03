@@ -26,7 +26,7 @@
 
 ## ✨ 项目简介
 
-Genshin Planner 是一个使用 Tauri v2 构建的原神养成规划桌面应用，帮助玩家高效管理角色和武器的升级材料。支持通过米游社扫码登录，自动计算所需材料，让养成规划更加便捷。
+Genshin Planner 是一个使用 Tauri v2 构建的原神养成规划桌面应用，帮助玩家高效管理角色和武器（暂未实现）的升级材料。支持通过米游社扫码登录，自动计算所需材料，让养成规划更加便捷。
 
 ## 🚀 功能特性
 
@@ -41,7 +41,7 @@ Genshin Planner 是一个使用 Tauri v2 构建的原神养成规划桌面应用
 ## 🖼️ 应用截图
 
 <div align="center">
-  <img src="resource/readme/截图-1.jpg" alt="应用截图" width="800">
+  <img src="resource/readme/截图-1.png" alt="应用截图" width="800">
 </div>
 
 ## 🛠️ 技术栈
