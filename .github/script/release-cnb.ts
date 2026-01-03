@@ -2,7 +2,7 @@
  * 发布到 CNB (cnb.cool)
  *
  * 使用方式: npx tsx release-cnb.ts \
- *   --token <CNB_TOKEN> \
+ *   --token <CNB_GIT_TOKEN> \
  *   --tag <版本标签> \
  *   --changelog <更新日志> \
  *   --files <文件路径1> <文件路径2> ...

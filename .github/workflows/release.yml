@@ -421,7 +421,7 @@ jobs:
       - name: 发布到 CNB (Release to CNB)
         working-directory: .github/script
         env:
-          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_GIT_TOKEN: ${{ secrets.CNB_GIT_TOKEN }}
         run: |
           TAG=${{ needs.validate.outputs.new_tag }}
           CHANGELOG='${{ steps.release_body.outputs.body }}'
@@ -430,7 +430,7 @@ jobs:
           FILES=$(find ../../release-files -type f | tr '\n' ' ')
 
           npx tsx release-cnb.ts \
-            --token "$CNB_TOKEN" \
+            --token "$CNB_GIT_TOKEN" \
             --tag "$TAG" \
             --changelog "$CHANGELOG" \
             --files $FILES
