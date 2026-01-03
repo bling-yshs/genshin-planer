@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+# Added
+
+- app 支持自动更新
+
 ## [0.0.5] - 2026-01-03
 
 ### Added
