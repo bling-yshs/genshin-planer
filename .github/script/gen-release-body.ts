@@ -69,7 +69,6 @@ function generateDownloadTable(tag: string, platform: 'github' | 'cnb'): string 
     { os: 'macOS', file: `genshin-planner_${tag.replace('v', '')}_x64.dmg`, emoji: '🍎' },
     { os: 'Linux (deb)', file: `genshin-planner_${tag.replace('v', '')}_amd64.deb`, emoji: '🐧' },
     { os: 'Linux (rpm)', file: `genshin-planner-${tag.replace('v', '')}-1.x86_64.rpm`, emoji: '🐧' },
-    { os: 'Linux (AppImage)', file: `genshin-planner_${tag.replace('v', '')}_amd64.AppImage`, emoji: '🐧' },
   ]
 
   let table = '## 📥 下载\n\n'

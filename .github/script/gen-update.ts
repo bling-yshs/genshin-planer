@@ -24,7 +24,6 @@ interface UpdateJson {
   pub_date: string
   platforms: {
     'windows-x86_64'?: UpdatePlatform
-    'linux-x86_64'?: UpdatePlatform
     'darwin-x86_64'?: UpdatePlatform
   }
 }
@@ -124,18 +123,6 @@ async function main() {
       url: `${baseUrl}/${fileName}`,
     }
     console.log(`   ✅ Windows: ${fileName}`)
-  }
-
-  // Linux AppImage
-  const linuxAppImage = findFileRecursive(artifactsDir, /\.AppImage$/i)
-  const linuxAppImageSig = findFileRecursive(artifactsDir, /\.AppImage\.sig$/i)
-  if (linuxAppImage && linuxAppImageSig) {
-    const fileName = path.basename(linuxAppImage)
-    updateJson.platforms['linux-x86_64'] = {
-      signature: readSignature(linuxAppImageSig),
-      url: `${baseUrl}/${fileName}`,
-    }
-    console.log(`   ✅ Linux: ${fileName}`)
   }
 
   // macOS (.app.tar.gz)
