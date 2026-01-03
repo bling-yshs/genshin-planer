@@ -1,19 +1,19 @@
-name: "Build Tauri App"
-description: "构建 Tauri 应用的共享步骤"
+name: Build Tauri App
+description: 构建 Tauri 应用的共享步骤
 
 inputs:
   platform:
-    description: "构建平台 (windows, windows-arm64, linux, linux-arm64, macos, macos-intel)"
+    description: '构建平台 (windows, windows-arm64, linux, linux-arm64, macos, macos-intel)'
     required: true
   signing-private-key:
-    description: "Tauri 签名私钥"
+    description: Tauri 签名私钥
     required: true
   signing-private-key-password:
-    description: "Tauri 签名私钥密码"
+    description: Tauri 签名私钥密码
     required: true
 
 runs:
-  using: "composite"
+  using: composite
   steps:
     - name: 安装系统依赖 (Install system dependencies)
       if: startsWith(inputs.platform, 'linux')

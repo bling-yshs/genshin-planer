@@ -123,8 +123,33 @@ jobs:
       - name: 下载全部 Artifact (Download all artifacts)
         uses: actions/download-artifact@v7
         with:
-          path: ./download
+          path: ./artifacts
           merge-multiple: true
+
+      - name: 整理文件 (Flatten files)
+        run: |
+          mkdir -p ./release-files
+          find ./artifacts -type f -exec cp {} ./release-files/ \;
+          ls -la ./release-files/
+
+      - name: 安装 Node.js (Install Node.js)
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: 安装脚本依赖 (Install script dependencies)
+        working-directory: .github/script
+        run: npm install
+
+      - name: 生成 Release Body (Generate Release Body)
+        id: release_body
+        working-directory: .github/script
+        run: |
+          BODY=$(npx tsx gen-release-body.ts --alpha --commit "${{ github.sha }}")
+
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: 上传到 alpha 预发布版本 (Upload to alpha pre-release)
         uses: ncipollo/release-action@v1
@@ -133,14 +158,8 @@ jobs:
           tag: alpha
           name: Alpha Build
           commit: ${{ github.sha }}
-          body: |
-            🚧 **Alpha 预览版本**
-
-            此版本由 CI 自动构建，包含最新的代码变更。
-
-            ---
-            **Commit**: ${{ github.sha }}
+          body: ${{ steps.release_body.outputs.body }}
           allowUpdates: true
           removeArtifacts: true
           prerelease: true
-          artifacts: ./download/**/*
+          artifacts: ./release-files/*
