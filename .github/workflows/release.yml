@@ -243,7 +243,7 @@ jobs:
       - name: 整理文件 (Flatten files)
         run: |
           mkdir -p ./release-files
-          find ./artifacts -type f -exec cp {} ./release-files/ \;
+          find ./artifacts -type f ! -name "*.sig" -exec cp {} ./release-files/ \;
           ls -la ./release-files/
 
       - name: 安装 Node.js (Install Node.js)
@@ -308,7 +308,7 @@ jobs:
       - name: 整理文件 (Flatten files)
         run: |
           mkdir -p ./release-files
-          find ./artifacts -type f -exec cp {} ./release-files/ \;
+          find ./artifacts -type f ! -name "*.sig" -exec cp {} ./release-files/ \;
           ls -la ./release-files/
 
       - name: 安装 Node.js (Install Node.js)
@@ -415,7 +415,7 @@ jobs:
           echo "-----------------------------------"
 
       - name: 创建 PR (Create PR)
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: 自动更新 CHANGELOG.md v${{ needs.validate.outputs.new_version }}"
