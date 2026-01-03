@@ -72,51 +72,55 @@
             </Button>
           </div>
           <!-- 获取背包物品进度条 -->
-          <div v-if="inventoryProgress.isLoading" class="mt-3">
-            <div class="flex w-full items-start">
-              <template v-for="(item, index) in inventorySteps" :key="item.step">
-                <!-- 连线（除了第一个） -->
-                <div
-                  v-if="index > 0"
-                  class="flex-1 h-0.5 mt-2.5 transition-colors duration-300"
-                  :class="item.step <= inventoryProgress.currentStep ? 'bg-primary' : 'bg-muted'"
-                />
-                <!-- 步骤点 -->
-                <div class="flex flex-col items-center">
+          <AnimatePresence>
+            <Motion
+              v-if="inventoryProgress.isLoading"
+              :initial="{ opacity: 0, y: -8 }"
+              :animate="{ opacity: 1, y: 0 }"
+              :exit="{ opacity: 0, y: -8 }"
+              :transition="{ duration: 0.3, ease: 'easeOut' }"
+              class="mt-3"
+            >
+              <div class="flex w-full items-start">
+                <template v-for="(item, index) in inventorySteps" :key="item.step">
+                  <!-- 连线（除了第一个） -->
                   <div
-                    class="size-5 rounded-full border-2 flex items-center justify-center transition-all duration-300"
-                    :class="[
-                      item.step < inventoryProgress.currentStep ? 'border-primary bg-primary' : '',
-                      item.step === inventoryProgress.currentStep ? 'border-primary bg-background' : '',
-                      item.step > inventoryProgress.currentStep ? 'border-muted bg-background' : '',
-                    ]"
-                  >
-                    <!-- 已完成：打勾 -->
-                    <svg v-if="item.step < inventoryProgress.currentStep" class="size-3 text-primary-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                    </svg>
-                    <!-- 进行中：转圈 -->
-                    <svg v-else-if="item.step === inventoryProgress.currentStep" class="size-3 text-primary" style="animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <!-- 未开始：小圆点 -->
-                    <span v-else class="size-1.5 rounded-full bg-muted" />
+                    v-if="index > 0"
+                    class="flex-1 h-0.5 mt-2.5 transition-colors duration-300"
+                    :class="item.step <= inventoryProgress.currentStep ? 'bg-primary' : 'bg-muted'"
+                  />
+                  <!-- 步骤点 -->
+                  <div class="flex flex-col items-center">
+                    <div
+                      class="size-5 rounded-full border-2 flex items-center justify-center transition-all duration-300"
+                      :class="[
+                        item.step < inventoryProgress.currentStep ? 'border-primary bg-primary' : '',
+                        item.step === inventoryProgress.currentStep ? 'border-primary bg-background' : '',
+                        item.step > inventoryProgress.currentStep ? 'border-muted bg-background' : '',
+                      ]"
+                    >
+                      <!-- 已完成：打勾 -->
+                      <i-mdi-check v-if="item.step < inventoryProgress.currentStep" class="size-3 text-primary-foreground" />
+                      <!-- 进行中：转圈 -->
+                      <i-mdi-loading v-else-if="item.step === inventoryProgress.currentStep" class="size-3 text-primary spinner-rotate" />
+                      <!-- 未开始：小圆点 -->
+                      <i-mdi-circle-small v-else class="size-4 text-muted" />
+                    </div>
+                    <span
+                      class="mt-1.5 text-[10px] font-medium transition-colors duration-300 whitespace-nowrap"
+                      :class="[
+                        item.step < inventoryProgress.currentStep ? 'text-foreground' : '',
+                        item.step === inventoryProgress.currentStep ? 'text-primary' : '',
+                        item.step > inventoryProgress.currentStep ? 'text-muted-foreground' : '',
+                      ]"
+                    >
+                      {{ item.title }}
+                    </span>
                   </div>
-                  <span
-                    class="mt-1.5 text-[10px] font-medium transition-colors duration-300 whitespace-nowrap"
-                    :class="[
-                      item.step < inventoryProgress.currentStep ? 'text-foreground' : '',
-                      item.step === inventoryProgress.currentStep ? 'text-primary' : '',
-                      item.step > inventoryProgress.currentStep ? 'text-muted-foreground' : '',
-                    ]"
-                  >
-                    {{ item.title }}
-                  </span>
-                </div>
-              </template>
-            </div>
-          </div>
+                </template>
+              </div>
+            </Motion>
+          </AnimatePresence>
         </CardContent>
       </Card>
 
@@ -192,16 +196,12 @@
                       <Button variant="outline" size="sm" class="h-7 gap-1 text-xs">
                         <span class="max-w-32 truncate">{{ currentPlanName }}</span>
                         <span v-if="hasUnsavedChanges" class="text-amber-500">*</span>
-                        <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                        </svg>
+                        <i-mdi-chevron-down class="size-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" class="w-56">
                       <DropdownMenuItem @click="createNewPlan">
-                        <svg class="mr-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                        </svg>
+                        <i-mdi-plus class="mr-2 size-4" />
                         新建空白计划
                       </DropdownMenuItem>
                       <DropdownMenuSeparator v-if="savedPlans.length > 0" />
@@ -211,9 +211,7 @@
                         :class="plan.id === currentPlanId ? 'bg-accent' : ''"
                         @click="tryLoadPlan(plan.id)"
                       >
-                        <svg class="mr-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M3.75 3A1.75 1.75 0 002 4.75v10.5c0 .966.784 1.75 1.75 1.75h12.5A1.75 1.75 0 0018 15.25v-8.5A1.75 1.75 0 0016.25 5h-4.836a.25.25 0 01-.177-.073L9.823 3.513A1.75 1.75 0 008.586 3H3.75z" clip-rule="evenodd" />
-                        </svg>
+                        <i-mdi-folder class="mr-2 size-4" />
                         <span class="truncate">{{ plan.name }}</span>
                         <span v-if="plan.id === currentPlanId" class="ml-auto text-primary">✓</span>
                       </DropdownMenuItem>
@@ -607,6 +605,7 @@ import type { PlanItem, SavedPlan } from '@/entity/InventoryItem.ts'
 import type { QrLogin } from '@/entity/remote/QrLogin.ts'
 import type { CalculatedMaterial } from '@/entity/wiki/WikiItem'
 import { marked } from 'marked'
+import { AnimatePresence, Motion } from 'motion-v'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import qualityBlue from '@/assets/level_background/UI_QUALITY_BLUE.png'
@@ -1727,6 +1726,10 @@ async function handleDownloadAndInstall() {
 }
 
 /* 转圈动画 */
+.spinner-rotate {
+  animation: spin 1s linear infinite;
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
