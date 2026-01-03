@@ -24,7 +24,11 @@ interface UpdateJson {
   pub_date: string
   platforms: {
     'windows-x86_64'?: UpdatePlatform
+    'windows-aarch64'?: UpdatePlatform
+    'linux-x86_64'?: UpdatePlatform
+    'linux-aarch64'?: UpdatePlatform
     'darwin-x86_64'?: UpdatePlatform
+    'darwin-aarch64'?: UpdatePlatform
   }
 }
 
@@ -66,28 +70,6 @@ function parseArgs(): { version: string, changelog: string, artifactsDir: string
 }
 
 /**
- * 递归查找文件
- */
-function findFileRecursive(dir: string, pattern: RegExp): string | null {
-  if (!fs.existsSync(dir))
-    return null
-
-  const entries = fs.readdirSync(dir, { withFileTypes: true })
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      const found = findFileRecursive(fullPath, pattern)
-      if (found)
-        return found
-    }
-    else if (pattern.test(entry.name)) {
-      return fullPath
-    }
-  }
-  return null
-}
-
-/**
  * 读取签名文件
  */
 function readSignature(sigPath: string): string {
@@ -113,28 +95,107 @@ async function main() {
     platforms: {},
   }
 
-  // Windows NSIS (.exe)
-  const windowsExe = findFileRecursive(artifactsDir, /\.exe$/i)
-  const windowsSig = findFileRecursive(artifactsDir, /\.exe\.sig$/i)
-  if (windowsExe && windowsSig) {
-    const fileName = path.basename(windowsExe)
-    updateJson.platforms['windows-x86_64'] = {
-      signature: readSignature(windowsSig),
-      url: `${baseUrl}/${fileName}`,
+  // 递归查找所有匹配的文件
+  function findAllFilesRecursive(dir: string, pattern: RegExp): string[] {
+    const results: string[] = []
+    if (!fs.existsSync(dir))
+      return results
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        results.push(...findAllFilesRecursive(fullPath, pattern))
+      }
+      else if (pattern.test(entry.name)) {
+        results.push(fullPath)
+      }
     }
-    console.log(`   ✅ Windows: ${fileName}`)
+    return results
+  }
+
+  // Windows NSIS (.exe)
+  const windowsExes = findAllFilesRecursive(artifactsDir, /\.exe$/i)
+  for (const exePath of windowsExes) {
+    const fileName = path.basename(exePath)
+    const sigPath = `${exePath}.sig`
+    if (!fs.existsSync(sigPath))
+      continue
+
+    if (fileName.includes('x64')) {
+      updateJson.platforms['windows-x86_64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ Windows x64: ${fileName}`)
+    }
+    else if (fileName.includes('arm64')) {
+      updateJson.platforms['windows-aarch64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ Windows ARM64: ${fileName}`)
+    }
+  }
+
+  // Linux deb (.deb) - 用于更新
+  const linuxDebs = findAllFilesRecursive(artifactsDir, /\.deb$/i)
+  for (const debPath of linuxDebs) {
+    const fileName = path.basename(debPath)
+    const sigPath = `${debPath}.sig`
+    if (!fs.existsSync(sigPath))
+      continue
+
+    if (fileName.includes('amd64')) {
+      updateJson.platforms['linux-x86_64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ Linux x64: ${fileName}`)
+    }
+    else if (fileName.includes('arm64') || fileName.includes('aarch64')) {
+      updateJson.platforms['linux-aarch64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ Linux ARM64: ${fileName}`)
+    }
   }
 
   // macOS (.app.tar.gz)
-  const macosApp = findFileRecursive(artifactsDir, /\.app\.tar\.gz$/i)
-  const macosAppSig = findFileRecursive(artifactsDir, /\.app\.tar\.gz\.sig$/i)
-  if (macosApp && macosAppSig) {
-    const fileName = path.basename(macosApp)
-    updateJson.platforms['darwin-x86_64'] = {
-      signature: readSignature(macosAppSig),
-      url: `${baseUrl}/${fileName}`,
+  const macosApps = findAllFilesRecursive(artifactsDir, /\.app\.tar\.gz$/i)
+  for (const appPath of macosApps) {
+    const fileName = path.basename(appPath)
+    const sigPath = `${appPath}.sig`
+    if (!fs.existsSync(sigPath))
+      continue
+
+    // macOS 文件名通常包含 x64 或 aarch64
+    if (fileName.includes('x64') || fileName.includes('x86_64')) {
+      updateJson.platforms['darwin-x86_64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ macOS Intel: ${fileName}`)
     }
-    console.log(`   ✅ macOS: ${fileName}`)
+    else if (fileName.includes('aarch64') || fileName.includes('arm64')) {
+      updateJson.platforms['darwin-aarch64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ macOS ARM64: ${fileName}`)
+    }
+    else {
+      // 如果没有架构标识，根据构建机器判断
+      // macos-latest 是 ARM，macos-15-intel 是 x64
+      // 这里假设没有标识的是默认架构（当前 runner 的架构）
+      // 由于我们无法在脚本中确定，先假设为 ARM64（macos-latest 默认）
+      updateJson.platforms['darwin-aarch64'] = {
+        signature: readSignature(sigPath),
+        url: `${baseUrl}/${fileName}`,
+      }
+      console.log(`   ✅ macOS (默认 ARM64): ${fileName}`)
+    }
   }
 
   if (Object.keys(updateJson.platforms).length === 0) {

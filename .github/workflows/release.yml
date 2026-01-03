@@ -77,168 +77,93 @@ jobs:
           echo "new_tag=v$APP_VERSION" >> $GITHUB_OUTPUT
 
   # =======================================================
-  # JOB 2: 构建 Windows
+  # JOB 2: 构建所有平台 (Matrix)
   # =======================================================
-  build-windows:
-    name: 2️⃣ 构建 Windows (Build Windows)
+  build:
+    name: 2️⃣ 构建 ${{ matrix.settings.name }}
     if: github.ref == 'refs/heads/main'
     needs: validate
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - name: 🪟 Windows x64
+            os: windows-latest
+            platform: windows
+            artifact-name: windows-x64-release
+            artifact-path: |
+              ./src-tauri/target/release/bundle/nsis/*.exe
+              ./src-tauri/target/release/bundle/nsis/*.sig
+
+          - name: 🪟 Windows ARM64
+            os: windows-11-arm
+            platform: windows-arm64
+            artifact-name: windows-arm64-release
+            artifact-path: |
+              ./src-tauri/target/release/bundle/nsis/*.exe
+              ./src-tauri/target/release/bundle/nsis/*.sig
+
+          - name: 🐧 Linux x64
+            os: ubuntu-22.04
+            platform: linux
+            artifact-name: linux-x64-release
+            artifact-path: |
+              ./src-tauri/target/release/bundle/deb/*.deb
+              ./src-tauri/target/release/bundle/rpm/*.rpm
+
+          - name: 🐧 Linux ARM64
+            os: ubuntu-22.04-arm
+            platform: linux-arm64
+            artifact-name: linux-arm64-release
+            artifact-path: |
+              ./src-tauri/target/release/bundle/deb/*.deb
+              ./src-tauri/target/release/bundle/rpm/*.rpm
+
+          - name: 🍎 macOS (Apple Silicon)
+            os: macos-latest
+            platform: macos
+            artifact-name: macos-arm64-release
+            artifact-path: |
+              ./src-tauri/target/release/bundle/macos/*.app.tar.gz
+              ./src-tauri/target/release/bundle/macos/*.sig
+              ./src-tauri/target/release/bundle/dmg/*.dmg
+
+          - name: 🍎 macOS (Intel)
+            os: macos-15-intel
+            platform: macos-intel
+            artifact-name: macos-intel-release
+            artifact-path: |
+              ./src-tauri/target/release/bundle/macos/*.app.tar.gz
+              ./src-tauri/target/release/bundle/macos/*.sig
+              ./src-tauri/target/release/bundle/dmg/*.dmg
+
+    runs-on: ${{ matrix.settings.os }}
 
     steps:
       - name: 检出代码 (Checkout)
         uses: actions/checkout@v6
 
-      - name: 安装 Rust (Install Rust)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust 缓存 (Rust cache)
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri -> target
-
-      - name: 安装 pnpm (Install pnpm)
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: 安装 Node.js (Install Node.js)
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: 安装前端依赖 (Install frontend dependencies)
-        run: pnpm install
-
       - name: 构建应用 (Build app)
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build
+        uses: ./.github/actions/build-tauri
+        with:
+          platform: ${{ matrix.settings.platform }}
+          signing-private-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          signing-private-key-password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: 上传构建产物 (Upload build artifacts)
         uses: actions/upload-artifact@v6
         with:
-          name: windows-release
-          path: |
-            ./src-tauri/target/release/bundle/nsis/*.exe
-            ./src-tauri/target/release/bundle/nsis/*.sig
+          name: ${{ matrix.settings.artifact-name }}
+          path: ${{ matrix.settings.artifact-path }}
           if-no-files-found: error
 
   # =======================================================
-  # JOB 3: 构建 Linux
-  # =======================================================
-  build-linux:
-    name: 2️⃣ 构建 Linux (Build Linux)
-    if: github.ref == 'refs/heads/main'
-    needs: validate
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: 检出代码 (Checkout)
-        uses: actions/checkout@v6
-
-      - name: 安装系统依赖 (Install system dependencies)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: 安装 Rust (Install Rust)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust 缓存 (Rust cache)
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri -> target
-
-      - name: 安装 pnpm (Install pnpm)
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: 安装 Node.js (Install Node.js)
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: 安装前端依赖 (Install frontend dependencies)
-        run: pnpm install
-
-      - name: 构建应用 (Build app)
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build
-
-      - name: 上传构建产物 (Upload build artifacts)
-        uses: actions/upload-artifact@v6
-        with:
-          name: linux-release
-          path: |
-            ./src-tauri/target/release/bundle/deb/*.deb
-            ./src-tauri/target/release/bundle/rpm/*.rpm
-          if-no-files-found: error
-
-  # =======================================================
-  # JOB 4: 构建 macOS
-  # =======================================================
-  build-macos:
-    name: 2️⃣ 构建 macOS (Build macOS)
-    if: github.ref == 'refs/heads/main'
-    needs: validate
-    runs-on: macos-latest
-
-    steps:
-      - name: 检出代码 (Checkout)
-        uses: actions/checkout@v6
-
-      - name: 安装 Rust (Install Rust)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust 缓存 (Rust cache)
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri -> target
-
-      - name: 安装 pnpm (Install pnpm)
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: 安装 Node.js (Install Node.js)
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: 安装前端依赖 (Install frontend dependencies)
-        run: pnpm install
-
-      - name: 构建应用 (Build app)
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build
-
-      - name: 上传构建产物 (Upload build artifacts)
-        uses: actions/upload-artifact@v6
-        with:
-          name: macos-release
-          path: |
-            ./src-tauri/target/release/bundle/macos/*.app.tar.gz
-            ./src-tauri/target/release/bundle/macos/*.sig
-            ./src-tauri/target/release/bundle/dmg/*.dmg
-          if-no-files-found: error
-
-  # =======================================================
-  # JOB 5: 生成元数据
+  # JOB 3: 生成元数据
   # =======================================================
   generate-metadata:
     name: 3️⃣ 生成元数据 (Generate metadata)
     if: github.ref == 'refs/heads/main'
-    needs: [validate, build-windows, build-linux, build-macos]
+    needs: [validate, build]
     runs-on: ubuntu-22.04
     outputs:
       changelog: ${{ steps.changelog_reader.outputs.changes }}
@@ -297,12 +222,12 @@ jobs:
           if-no-files-found: error
 
   # =======================================================
-  # JOB 6: 发布到 GitHub
+  # JOB 4: 发布到 GitHub
   # =======================================================
   release-github:
     name: 4️⃣ 发布到 GitHub (Release to GitHub)
     if: github.ref == 'refs/heads/main'
-    needs: [validate, build-windows, build-linux, build-macos, generate-metadata]
+    needs: [validate, build, generate-metadata]
     runs-on: ubuntu-22.04
 
     steps:
@@ -362,12 +287,12 @@ jobs:
           artifacts: ./release-files/*
 
   # =======================================================
-  # JOB 7: 发布到 CNB
+  # JOB 5: 发布到 CNB
   # =======================================================
   release-cnb:
     name: 5️⃣ 发布到 CNB (Release to CNB)
     if: github.ref == 'refs/heads/main'
-    needs: [validate, build-windows, build-linux, build-macos, generate-metadata]
+    needs: [validate, build, generate-metadata]
     runs-on: ubuntu-22.04
 
     steps:
@@ -434,7 +359,7 @@ jobs:
             --files $FILES
 
   # =======================================================
-  # JOB 8: 更新 CHANGELOG 并创建 PR
+  # JOB 6: 更新 CHANGELOG 并创建 PR
   # =======================================================
   update-changelog:
     name: 6️⃣ 更新 CHANGELOG (Update CHANGELOG)
@@ -471,8 +396,8 @@ jobs:
           sed -i.bak "s|## \[Unreleased\]|## \[${NEW_VERSION}\] - ${TODAY}|" $FILE
 
           # 3. 在文件主标题下方添加新的 [Unreleased] 块
-          sed -i.bak "/^# .*/a \\\
-          \\\
+          sed -i.bak "/^# .*/a \\
+          \\
           ## [Unreleased]
           " $FILE
 

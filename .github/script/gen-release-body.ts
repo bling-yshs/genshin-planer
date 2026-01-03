@@ -65,10 +65,14 @@ function generateDownloadTable(tag: string, platform: 'github' | 'cnb'): string 
   const baseUrl = platform === 'github' ? githubBase : cnbBase
 
   const downloads = [
-    { os: 'Windows', file: `genshin-planner_${tag.replace('v', '')}_x64-setup.exe`, emoji: '🪟' },
-    { os: 'macOS', file: `genshin-planner_${tag.replace('v', '')}_x64.dmg`, emoji: '🍎' },
-    { os: 'Linux (deb)', file: `genshin-planner_${tag.replace('v', '')}_amd64.deb`, emoji: '🐧' },
-    { os: 'Linux (rpm)', file: `genshin-planner-${tag.replace('v', '')}-1.x86_64.rpm`, emoji: '🐧' },
+    { os: 'Windows x64', file: `genshin-planner_${tag.replace('v', '')}_x64-setup.exe`, emoji: '🪟' },
+    { os: 'Windows ARM64', file: `genshin-planner_${tag.replace('v', '')}_arm64-setup.exe`, emoji: '🪟' },
+    { os: 'macOS (Apple Silicon)', file: `genshin-planner_${tag.replace('v', '')}_aarch64.dmg`, emoji: '🍎' },
+    { os: 'macOS (Intel)', file: `genshin-planner_${tag.replace('v', '')}_x64.dmg`, emoji: '🍎' },
+    { os: 'Linux x64 (deb)', file: `genshin-planner_${tag.replace('v', '')}_amd64.deb`, emoji: '🐧' },
+    { os: 'Linux x64 (rpm)', file: `genshin-planner-${tag.replace('v', '')}-1.x86_64.rpm`, emoji: '🐧' },
+    { os: 'Linux ARM64 (deb)', file: `genshin-planner_${tag.replace('v', '')}_arm64.deb`, emoji: '🐧' },
+    { os: 'Linux ARM64 (rpm)', file: `genshin-planner-${tag.replace('v', '')}-1.aarch64.rpm`, emoji: '🐧' },
   ]
 
   let table = '## 📥 下载\n\n'
