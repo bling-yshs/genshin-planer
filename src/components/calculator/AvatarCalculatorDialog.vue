@@ -110,11 +110,11 @@
                         alt=""
                         class="absolute inset-0 w-full h-full rounded object-cover"
                       >
-                      <img
+                      <CachedImage
                         :src="material.icon_url"
                         :alt="material.name"
                         class="relative w-full h-full rounded object-cover"
-                      >
+                      />
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="text-xs truncate">{{ material.name }}</div>
@@ -171,6 +171,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import AvatarSelector from './AvatarSelector.vue'
 import AvatarConfigPanel from './AvatarConfigPanel.vue'
+import CachedImage from '@/components/common/CachedImage.vue'
 
 // 导入品质背景图片
 import qualityNone from '@/assets/level_background/UI_QUALITY_NONE.png'
@@ -207,9 +208,14 @@ const props = defineProps<{
   open: boolean
 }>()
 
+interface AvatarPlanPayload {
+  config: AvatarCalculatorConfig
+  materials: CalculatedMaterial[]
+}
+
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void
-  (e: 'add-materials', materials: CalculatedMaterial[]): void
+  (e: 'add-avatar-plans', plans: AvatarPlanPayload[]): void
 }>()
 
 const isOpen = computed({
@@ -356,18 +362,6 @@ function applyPreset(preset: string) {
 
 // 计算并添加材料
 async function calculateAndAdd() {
-  // 如果预览材料已经计算好，直接使用
-  if (previewMaterials.value.length > 0 && !isPreviewCalculating.value) {
-    emit('add-materials', previewMaterials.value)
-    isOpen.value = false
-    // 重置状态
-    step.value = 1
-    selectedAvatars.value = []
-    previewMaterials.value = []
-    return
-  }
-
-  // 否则重新计算
   isCalculating.value = true
   calculationError.value = ''
 
@@ -375,8 +369,12 @@ async function calculateAndAdd() {
     const configs = selectedAvatars.value.map(avatar => avatarConfigs[avatar._id])
     const result = await batchCalculateMaterials(configs)
 
-    // 发送合并后的材料到父组件
-    emit('add-materials', result.mergedMaterials)
+    const avatarPlans: AvatarPlanPayload[] = configs.map((config, index) => ({
+      config,
+      materials: result.avatarResults[index]?.materials ?? [],
+    }))
+
+    emit('add-avatar-plans', avatarPlans)
     isOpen.value = false
 
     // 重置状态

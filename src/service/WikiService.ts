@@ -1,35 +1,29 @@
+import type {
+  HakushCharacterData,
+  HakushCharacterListResponse,
+  HakushItemListResponse,
+} from '@/entity/wiki/HakushTypes'
 import type { WikiAvatarInfo, WikiAvatarMaterials } from '@/entity/wiki/WikiAvatar'
 import type { WikiItem } from '@/entity/wiki/WikiItem'
-import { invoke } from '@tauri-apps/api/core'
 import { fetch } from '@tauri-apps/plugin-http'
+import {
+  adaptHakushCharacterInfo,
+  adaptHakushItem,
+  adaptHakushMaterials,
+  isTraveler,
+  validateCharacterMaterials,
+} from '@/utils/hakushAdapter'
 
-const WIKI_BASE_URL = 'https://homdgcat.wiki/gi/CH'
-const WIKI_RES_BASE_URL = 'https://homdgcat.wiki/homdgcat-res'
+// Hakush 数据源 URL
+const HAKUSH_BASE_URL = 'https://cnb.cool/bling-team/yuhengbei/-/git/raw/main/output/hakush/gi'
+const HAKUSH_JSON_URL = `${HAKUSH_BASE_URL}/json`
+const HAKUSH_IMAGE_URL = `${HAKUSH_BASE_URL}/image`
 
 // 缓存
 let avatarListCache: WikiAvatarInfo[] | null = null
 let itemCache: Map<number, WikiItem> | null = null
 const avatarMaterialsCache = new Map<string, WikiAvatarMaterials>()
-
-interface RustResult<T> {
-  success: boolean
-  data: T | null
-  message: string
-}
-
-/**
- * 执行 JS 代码并返回指定变量的值
- */
-async function executeJsAndGetVariable<T>(jsCode: string, variableName: string): Promise<T> {
-  const result = await invoke<RustResult<T>>('execute_js_get_variable', {
-    jsCode,
-    variableName,
-  })
-  if (!result.success || result.data === null) {
-    throw new Error(result.message || `无法获取变量 ${variableName}`)
-  }
-  return result.data
-}
+const characterDataCache = new Map<string, HakushCharacterData>()
 
 /**
  * 获取全角色列表
@@ -39,80 +33,133 @@ export async function fetchWikiAvatarList(): Promise<WikiAvatarInfo[]> {
     return avatarListCache
   }
 
-  const response = await fetch(`${WIKI_BASE_URL}/avatar.js`)
+  const response = await fetch(`${HAKUSH_JSON_URL}/character.json`)
   if (!response.ok) {
     throw new Error(`获取角色列表失败: ${response.status}`)
   }
 
-  const jsText = await response.text()
-  const avatarList = await executeJsAndGetVariable<WikiAvatarInfo[]>(jsText, '__AvatarInfoConfig')
+  const data = await response.json() as HakushCharacterListResponse
 
-  // 过滤掉旅行者等特殊角色
-  const filteredList = avatarList.filter(
-    avatar => !['PlayerGirl', 'PlayerBoy'].includes(avatar._name)
-      && !avatar._name.includes('_Odd')
-      && !avatar.Name.includes('旅行者'),
-  )
+  // 转换并过滤角色
+  const avatarList: WikiAvatarInfo[] = []
+  const avatarWithRelease: Array<{ avatar: WikiAvatarInfo, release: string }> = []
 
-  avatarListCache = filteredList
-  return filteredList
+  for (const [id, info] of Object.entries(data)) {
+    // 过滤旅行者
+    if (isTraveler(id, info)) {
+      continue
+    }
+
+    // 不再过滤未发布角色，而是将其排在最前面
+    const avatar = adaptHakushCharacterInfo(id, info)
+    avatarWithRelease.push({ avatar, release: info.release })
+  }
+
+  // 排序: 未发布角色 (1970-01-01) 排在最前，其他按发布时间从晚到早
+  avatarWithRelease.sort((a, b) => {
+    const dateA = new Date(a.release)
+    const dateB = new Date(b.release)
+
+    // 检查是否为未发布角色 (1970-01-01)
+    const isUnreleasedA = dateA.getFullYear() === 1970
+    const isUnreleasedB = dateB.getFullYear() === 1970
+
+    // 未发布角色排在最前
+    if (isUnreleasedA && !isUnreleasedB) {
+      return -1
+    }
+    if (!isUnreleasedA && isUnreleasedB) {
+      return 1
+    }
+
+    // 都是未发布或都是已发布，按时间从晚到早排序
+    return dateB.getTime() - dateA.getTime()
+  })
+
+  // 提取排序后的角色列表
+  for (const item of avatarWithRelease) {
+    avatarList.push(item.avatar)
+  }
+
+  avatarListCache = avatarList
+  return avatarList
 }
 
 /**
  * 获取角色材料数据
+ * @param avatarId 角色数字 ID (如 "10000037")
  */
-export async function fetchWikiAvatarMaterials(avatarEnglishName: string): Promise<WikiAvatarMaterials> {
-  const cached = avatarMaterialsCache.get(avatarEnglishName)
+export async function fetchWikiAvatarMaterials(avatarId: string): Promise<WikiAvatarMaterials> {
+  const cached = avatarMaterialsCache.get(avatarId)
   if (cached) {
     return cached
   }
 
-  const response = await fetch(`${WIKI_BASE_URL}/Avatar/${avatarEnglishName}_1.js`)
+  const response = await fetch(`${HAKUSH_JSON_URL}/character/${avatarId}.json`)
   if (!response.ok) {
     throw new Error(`获取角色材料数据失败: ${response.status}`)
   }
 
-  const jsText = await response.text()
-  const materialsObj = await executeJsAndGetVariable<Record<string, WikiAvatarMaterials>>(jsText, '_AvatarMats_')
+  const characterData = await response.json() as HakushCharacterData
 
-  const materials = Object.values(materialsObj)[0] as WikiAvatarMaterials
+  // 验证材料数据完整性
+  if (!validateCharacterMaterials(characterData)) {
+    throw new Error(`角色 ${avatarId} 的材料数据不完整`)
+  }
 
-  avatarMaterialsCache.set(avatarEnglishName, materials)
+  // 转换材料数据
+  const materials = adaptHakushMaterials(characterData.Materials)
+
+  // 缓存
+  avatarMaterialsCache.set(avatarId, materials)
+  characterDataCache.set(avatarId, characterData)
+
   return materials
 }
 
 /**
+ * 获取角色完整数据 (包含 LevelEXP)
+ * @param avatarId 角色数字 ID
+ */
+export async function fetchHakushCharacterData(avatarId: string): Promise<HakushCharacterData> {
+  const cached = characterDataCache.get(avatarId)
+  if (cached) {
+    return cached
+  }
+
+  const response = await fetch(`${HAKUSH_JSON_URL}/character/${avatarId}.json`)
+  if (!response.ok) {
+    throw new Error(`获取角色数据失败: ${response.status}`)
+  }
+
+  const characterData = await response.json() as HakushCharacterData
+  characterDataCache.set(avatarId, characterData)
+
+  return characterData
+}
+
+/**
  * 获取物品信息缓存
- * 注意：item.js 返回的数组中，只有索引 1-9 是材料数据，其他索引包含非材料数据（如成就图标等）
  */
 export async function fetchWikiItemList(): Promise<Map<number, WikiItem>> {
   if (itemCache) {
     return itemCache
   }
 
-  const response = await fetch(`${WIKI_BASE_URL}/item.js`)
+  const response = await fetch(`${HAKUSH_JSON_URL}/item_all.json`)
   if (!response.ok) {
     throw new Error(`获取物品列表失败: ${response.status}`)
   }
 
-  const jsText = await response.text()
-  const itemsArray = await executeJsAndGetVariable<WikiItem[][]>(jsText, '_items')
+  const data = await response.json() as HakushItemListResponse
 
   // 构建 ID -> Item 映射
-  // 只取索引 1-5 的数据，这些才是材料数据
   const itemMap = new Map<number, WikiItem>()
-  for (let i = 1; i <= 9 && i < itemsArray.length; i++) {
-    const category = itemsArray[i]
-    if (Array.isArray(category)) {
-      for (const item of category) {
-        if (item && item._id) {
-          itemMap.set(item._id, item)
-        }
-      }
-    }
+  for (const [id, item] of Object.entries(data)) {
+    itemMap.set(Number.parseInt(id, 10), adaptHakushItem(id, item))
   }
 
-  // 添加摩拉（特殊处理）
+  // 确保摩拉存在 (ID 202)
   if (!itemMap.has(202)) {
     itemMap.set(202, {
       _id: 202,
@@ -122,6 +169,26 @@ export async function fetchWikiItemList(): Promise<Map<number, WikiItem>> {
       Icon: 'UI_ItemIcon_202',
       Type: '货币',
     })
+  }
+
+  // 确保经验书存在
+  const expBooks = [
+    { id: 104001, name: '流浪者的经验', icon: 'UI_ItemIcon_104001', rank: 2 },
+    { id: 104002, name: '冒险家的经验', icon: 'UI_ItemIcon_104002', rank: 3 },
+    { id: 104003, name: '大英雄的经验', icon: 'UI_ItemIcon_104003', rank: 4 },
+  ]
+
+  for (const book of expBooks) {
+    if (!itemMap.has(book.id)) {
+      itemMap.set(book.id, {
+        _id: book.id,
+        R: book.rank,
+        Name: book.name,
+        Desc: '角色经验素材',
+        Icon: book.icon,
+        Type: '角色经验素材',
+      })
+    }
   }
 
   itemCache = itemMap
@@ -135,14 +202,17 @@ export function getWikiItemIconUrl(iconName: string): string {
   if (!iconName) {
     return ''
   }
-  return `${WIKI_RES_BASE_URL}/Mat/${iconName}.png`
+  return `${HAKUSH_IMAGE_URL}/${iconName}.webp`
 }
 
 /**
  * 获取角色图标 URL
  */
 export function getWikiAvatarIconUrl(avatar: WikiAvatarInfo): string {
-  return `${WIKI_RES_BASE_URL}/Avatar/UI_AvatarIcon_${avatar._name}.png`
+  if (!avatar.Icon) {
+    return ''
+  }
+  return `${HAKUSH_IMAGE_URL}/${avatar.Icon}.webp`
 }
 
 /**
@@ -152,4 +222,5 @@ export function clearWikiCache(): void {
   avatarListCache = null
   itemCache = null
   avatarMaterialsCache.clear()
+  characterDataCache.clear()
 }
