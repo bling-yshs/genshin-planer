@@ -3,11 +3,11 @@
     <div class="flex items-start gap-3">
       <!-- 角色头像 -->
       <div class="flex-shrink-0">
-        <img
+        <CachedImage
           :src="getWikiAvatarIconUrl(avatar)"
           :alt="avatar.Name"
           class="w-12 h-12 rounded"
-        >
+        />
       </div>
 
       <!-- 配置区域 -->
@@ -119,6 +119,7 @@ import { getWikiAvatarIconUrl } from '@/service/WikiService'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import CachedImage from '@/components/common/CachedImage.vue'
 
 const props = defineProps<{
   avatar: WikiAvatarInfo

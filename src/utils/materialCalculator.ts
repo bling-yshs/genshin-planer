@@ -1,6 +1,7 @@
 import type { AvatarCalculatorConfig } from '@/entity/wiki/WikiAvatar'
 import type { BatchCalculationResult, CalculatedMaterial } from '@/entity/wiki/WikiItem'
-import { fetchWikiAvatarMaterials, fetchWikiItemList, getWikiItemIconUrl } from '@/service/WikiService'
+import { fetchHakushCharacterData, fetchWikiAvatarMaterials, fetchWikiItemList, getWikiItemIconUrl } from '@/service/WikiService'
+import { calculateExpBooks } from '@/utils/hakushAdapter'
 
 /**
  * 根据等级获取突破阶段
@@ -42,8 +43,23 @@ function mergeMaterials(
 export async function calculateAvatarMaterials(
   config: AvatarCalculatorConfig,
 ): Promise<Map<number, number>> {
-  const materials = await fetchWikiAvatarMaterials(config.avatar._name)
+  const avatarId = config.avatar._id.toString()
+  const materials = await fetchWikiAvatarMaterials(avatarId)
   const result = new Map<number, number>()
+
+  // 0. 计算经验书需求 (如果需要升级)
+  if (config.levelFrom < config.levelTo) {
+    try {
+      const characterData = await fetchHakushCharacterData(avatarId)
+      if (characterData.LevelEXP && characterData.LevelEXP.length > 0) {
+        const expBooks = calculateExpBooks(config.levelFrom, config.levelTo, characterData.LevelEXP)
+        mergeMaterials(result, expBooks)
+      }
+    }
+    catch (error) {
+      console.warn(`无法获取角色 ${avatarId} 的经验数据:`, error)
+    }
+  }
 
   // 1. 计算突破材料
   const fromPhase = getAscensionPhase(config.levelFrom)
@@ -106,7 +122,7 @@ export async function convertToCalculatedMaterials(
         num,
         level: item.R,
         rarity: item.R,
-        wiki_url: `https://homdgcat.wiki/gi/item/${id}`,
+        wiki_url: `https://genshin.honeyhunterworld.com/i_${id}/?lang=CHS`,
       })
     }
     else {
@@ -120,7 +136,7 @@ export async function convertToCalculatedMaterials(
         num,
         level: 1,
         rarity: 1,
-        wiki_url: `https://homdgcat.wiki/gi/item/${id}`,
+        wiki_url: `https://genshin.honeyhunterworld.com/i_${id}/?lang=CHS`,
       })
     }
   }

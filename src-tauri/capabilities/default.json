@@ -16,11 +16,19 @@
       ]
     },
     "fs:default",
+    "fs:allow-appcache-write-recursive",
+    "fs:allow-appcache-read-recursive",
+    "fs:allow-appcache-meta-recursive",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
     {
       "identifier": "fs:scope",
       "allow": [
         {
           "path": "$APPDATA/**"
+        },
+        {
+          "path": "$APPCACHE/**"
         }
       ]
     },

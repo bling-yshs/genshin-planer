@@ -1,611 +1,115 @@
 <template>
-  <div class="min-h-screen bg-background p-6">
-    <div class="mx-auto">
-      <!-- 调试信息区域 -->
-      <Card class="mb-4">
-        <CardHeader class="py-2 px-4">
-          <CardTitle class="text-sm flex items-center gap-2">
-            🔧 调试信息
-            <button
-              class="text-muted-foreground hover:text-foreground transition-colors"
-              :title="showDebugInfo ? '隐藏敏感信息' : '显示敏感信息'"
-              @click="showDebugInfo = !showDebugInfo"
-            >
-              <i-mdi-eye-outline v-if="showDebugInfo" class="size-4" />
-              <i-mdi-eye-off-outline v-else class="size-4" />
-            </button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent class="py-2 px-4">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
-            <div class="space-y-1">
-              <div class="text-muted-foreground">
-                UID:
-              </div>
-              <div class="bg-muted p-1.5 rounded truncate" :title="showDebugInfo ? (authStore.gameTokens?.uid || '未获取') : '***'">
-                {{ showDebugInfo ? (authStore.gameTokens?.uid || '-') : (authStore.gameTokens?.uid ? '***' : '-') }}
-              </div>
-            </div>
-            <div class="space-y-1">
-              <div class="text-muted-foreground">
-                ltuid:
-              </div>
-              <div class="bg-muted p-1.5 rounded truncate" :title="showDebugInfo ? (authStore.gameTokens?.ltuid || '未获取') : '***'">
-                {{ showDebugInfo ? (authStore.gameTokens?.ltuid || '-') : (authStore.gameTokens?.ltuid ? '***' : '-') }}
-              </div>
-            </div>
-            <div class="space-y-1">
-              <div class="text-muted-foreground">
-                ltoken:
-              </div>
-              <div class="bg-muted p-1.5 rounded truncate" :title="showDebugInfo ? (authStore.gameTokens?.ltoken || '未获取') : '***'">
-                {{ showDebugInfo ? (authStore.gameTokens?.ltoken ? `${authStore.gameTokens.ltoken.slice(0, 20)}...` : '-') : (authStore.gameTokens?.ltoken ? '***' : '-') }}
-              </div>
-            </div>
-            <div class="space-y-1">
-              <div class="text-muted-foreground">
-                cookie_token:
-              </div>
-              <div class="bg-muted p-1.5 rounded truncate" :title="showDebugInfo ? (authStore.gameTokens?.cookie_token || '未获取') : '***'">
-                {{ showDebugInfo ? (authStore.gameTokens?.cookie_token ? `${authStore.gameTokens.cookie_token.slice(0, 20)}...` : '-') : (authStore.gameTokens?.cookie_token ? '***' : '-') }}
-              </div>
-            </div>
-          </div>
-          <div class="flex gap-2 flex-wrap mt-3">
-            <Button size="sm" @click="openLoginQRCode">
-              📲 扫码登录
-            </Button>
-            <Button size="sm" variant="default" :disabled="inventoryProgress.isLoading" @click="fetchAllAvatarsInventory">
-              📦 {{ inventoryProgress.isLoading ? '获取中...' : '获取背包物品列表' }}
-            </Button>
-            <Button size="sm" variant="outline" @click="testFn">
-              🧪 测试
-            </Button>
-            <Button size="sm" variant="outline" @click="showDeviceInfo">
-              📱 设备信息
-            </Button>
-            <Button variant="destructive" size="sm" @click="clearTestData">
-              🗑️ 清除数据
-            </Button>
-            <Button size="sm" variant="outline" :disabled="isCheckingUpdate" @click="handleCheckUpdate(false)">
-              🔄 {{ isCheckingUpdate ? '检查中...' : '检查更新' }}
-            </Button>
-          </div>
-          <!-- 获取背包物品进度条 -->
-          <AnimatePresence>
-            <Motion
-              v-if="inventoryProgress.isLoading"
-              :initial="{ opacity: 0, y: -8 }"
-              :animate="{ opacity: 1, y: 0 }"
-              :exit="{ opacity: 0, y: -8 }"
-              :transition="{ duration: 0.3, ease: 'easeOut' }"
-              class="mt-3"
-            >
-              <div class="flex w-full items-start">
-                <template v-for="(item, index) in inventorySteps" :key="item.step">
-                  <!-- 连线（除了第一个） -->
-                  <div
-                    v-if="index > 0"
-                    class="flex-1 h-0.5 mt-2.5 transition-colors duration-300"
-                    :class="item.step <= inventoryProgress.currentStep ? 'bg-primary' : 'bg-muted'"
-                  />
-                  <!-- 步骤点 -->
-                  <div class="flex flex-col items-center">
-                    <div
-                      class="size-5 rounded-full border-2 flex items-center justify-center transition-all duration-300"
-                      :class="[
-                        item.step < inventoryProgress.currentStep ? 'border-primary bg-primary' : '',
-                        item.step === inventoryProgress.currentStep ? 'border-primary bg-background' : '',
-                        item.step > inventoryProgress.currentStep ? 'border-muted bg-background' : '',
-                      ]"
-                    >
-                      <!-- 已完成：打勾 -->
-                      <i-mdi-check v-if="item.step < inventoryProgress.currentStep" class="size-3 text-primary-foreground" />
-                      <!-- 进行中：转圈 -->
-                      <i-mdi-loading v-else-if="item.step === inventoryProgress.currentStep" class="size-3 text-primary spinner-rotate" />
-                      <!-- 未开始：小圆点 -->
-                      <i-mdi-circle-small v-else class="size-4 text-muted" />
-                    </div>
-                    <span
-                      class="mt-1.5 text-[10px] font-medium transition-colors duration-300 whitespace-nowrap"
-                      :class="[
-                        item.step < inventoryProgress.currentStep ? 'text-foreground' : '',
-                        item.step === inventoryProgress.currentStep ? 'text-primary' : '',
-                        item.step > inventoryProgress.currentStep ? 'text-muted-foreground' : '',
-                      ]"
-                    >
-                      {{ item.title }}
-                    </span>
-                  </div>
-                </template>
-              </div>
-            </Motion>
-          </AnimatePresence>
-        </CardContent>
-      </Card>
+  <div class="min-h-screen p-6">
+    <div class="mx-auto max-w-[1920px]">
+      <DebugPanel
+        :show-debug-info="showDebugInfo"
+        :game-tokens="authStore.gameTokens"
+        :inventory-progress="inventoryProgress"
+        :inventory-steps="inventorySteps"
+        :is-checking-update="isCheckingUpdate"
+        @toggle-debug="showDebugInfo = !showDebugInfo"
+        @login="openLoginQRCode"
+        @fetch-inventory="fetchAllAvatarsInventory"
+        @test="testFn"
+        @show-device-info="showDeviceInfo"
+        @clear-test-data="clearTestData"
+        @check-update="handleCheckUpdate(false)"
+      />
 
-      <!-- 可调整大小的左右布局容器 -->
-      <ResizablePanelGroup direction="horizontal" class="rounded-lg border max-h-[90vh] min-h-[90vh]">
+      <ResizablePanelGroup direction="horizontal" class="rounded-xl border-2 border-border/50 max-h-[90vh] min-h-[90vh] overflow-hidden shadow-2xl">
         <ResizablePanel :default-size="50" :min-size="30">
-          <Card class="h-full border-0 rounded-none flex flex-col">
-            <CardHeader class="pb-3 flex-shrink-0">
-              <CardTitle class="text-lg">
-                物品库
-              </CardTitle>
-              <CardDescription>点击物品添加到养成计划</CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-3 flex-grow flex flex-col min-h-0">
-              <Input
-                v-model="searchQuery"
-                type="text"
-                placeholder="搜索物品..."
-                class="w-full flex-shrink-0"
-              />
-
-              <!-- 物品网格 -->
-              <div class="flex-grow overflow-y-auto scrollbar-overlay min-h-0">
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-2 p-3">
-                  <Card
-                    v-for="item in filteredItems"
-                    :key="item.id"
-                    class="cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground p-1"
-                    @click="addToPlan(item)"
-                  >
-                    <CardContent class="flex items-center gap-2 p-2">
-                      <div class="relative size-8 flex-shrink-0">
-                        <img
-                          :src="getQualityBackground(item.level)"
-                          alt=""
-                          class="absolute inset-0 size-full rounded object-cover"
-                        >
-                        <img
-                          :src="item.icon_url"
-                          :alt="item.name"
-                          class="relative size-full rounded object-cover"
-                        >
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <div class="truncate font-medium text-xs">
-                          {{ item.name }}
-                        </div>
-                        <div class="text-xs text-muted-foreground">
-                          拥有: {{ item.actualNum }}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ItemLibraryPanel
+            v-model:search-query="searchQuery"
+            :filtered-items="filteredItems"
+            :get-quality-background="getQualityBackground"
+            @add="addToPlan"
+          />
         </ResizablePanel>
 
-        <!-- 可拖动的分隔条 -->
-        <ResizableHandle with-handle />
+        <ResizableHandle with-handle class="bg-border/50 hover:bg-primary/30 transition-colors" />
         <ResizablePanel :default-size="50" :min-size="42">
-          <Card class="h-full border-0 rounded-none flex flex-col">
-            <CardHeader class="pb-3 flex-shrink-0">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <CardTitle class="text-lg">
-                    养成计划
-                  </CardTitle>
-                  <!-- 计划切换下拉菜单 -->
-                  <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                      <Button variant="outline" size="sm" class="h-7 gap-1 text-xs">
-                        <span class="max-w-32 truncate">{{ currentPlanName }}</span>
-                        <span v-if="hasUnsavedChanges" class="text-amber-500">*</span>
-                        <i-mdi-chevron-down class="size-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" class="w-56">
-                      <DropdownMenuItem @click="createNewPlan">
-                        <i-mdi-plus class="mr-2 size-4" />
-                        新建空白计划
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator v-if="savedPlans.length > 0" />
-                      <DropdownMenuItem
-                        v-for="plan in savedPlans"
-                        :key="plan.id"
-                        :class="plan.id === currentPlanId ? 'bg-accent' : ''"
-                        @click="tryLoadPlan(plan.id)"
-                      >
-                        <i-mdi-folder class="mr-2 size-4" />
-                        <span class="truncate">{{ plan.name }}</span>
-                        <span v-if="plan.id === currentPlanId" class="ml-auto text-primary">✓</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <!-- 操作按钮 -->
-                <div class="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-7 px-2"
-                    title="保存"
-                    @click="quickSave"
-                  >
-                    💾
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-7 px-2"
-                    title="另存为"
-                    @click="openSaveAsDialog"
-                  >
-                    📤
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-7 px-2"
-                    title="重命名"
-                    :disabled="!currentPlanId"
-                    @click="openRenameDialog"
-                  >
-                    ✏️
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-7 px-2 text-destructive hover:text-destructive"
-                    title="删除"
-                    :disabled="!currentPlanId"
-                    @click="openDeleteDialog"
-                  >
-                    🗑️
-                  </Button>
-                </div>
-              </div>
-              <CardDescription>管理你的材料需求</CardDescription>
-              <Button
-                variant="outline"
-                size="sm"
-                class="mt-2 w-fit"
-                @click="showCalculatorDialog = true"
-              >
-                📊 快速添加角色材料
-              </Button>
-            </CardHeader>
-            <CardContent class="flex-grow flex flex-col min-h-0">
-              <div
-                v-if="cultivationPlan.length === 0"
-                class="text-center py-8 flex-grow flex flex-col items-center justify-center"
-              >
-                <div class="text-muted-foreground">
-                  点击上方「快速添加角色材料」批量添加，或点击左侧物品手动添加
-                </div>
-              </div>
-
-              <div v-else class="flex flex-col flex-grow min-h-0 space-y-3">
-                <div class="flex flex-col gap-2 flex-shrink-0">
-                  <!-- 筛选按钮 -->
-                  <div class="flex gap-2 flex-wrap">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      :class="planFilter === 'all' ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : ''"
-                      @click="setPlanFilter('all')"
-                    >
-                      默认
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      :class="planFilter === 'shortage' ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : ''"
-                      @click="setPlanFilter('shortage')"
-                    >
-                      仅查看缺少物品
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="flex-grow overflow-y-auto scrollbar-overlay min-h-0 pb-3">
-                  <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 p-1">
-                    <Card
-                      v-for="planItem in filteredPlan"
-                      :key="planItem.id"
-                      class="relative border-l-2 p-1 transition-colors hover:bg-accent/50"
-                      :class="planItem.shortage > 0 ? 'border-l-destructive' : 'border-l-green-500'"
-                    >
-                      <!-- 删除按钮 -->
-                      <button
-                        class="absolute -top-1 -right-1 size-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs opacity-0 hover:opacity-100 transition-opacity z-10"
-                        title="删除"
-                        @click.stop="removeFromPlan(planItem.id)"
-                      >
-                        ×
-                      </button>
-                      <CardContent class="p-2">
-                        <div class="flex items-start gap-2">
-                          <div class="relative size-8 flex-shrink-0">
-                            <img
-                              :src="getQualityBackground(planItem.level)"
-                              alt=""
-                              class="absolute inset-0 size-full rounded object-cover"
-                            >
-                            <img
-                              :src="planItem.icon_url"
-                              :alt="planItem.name"
-                              class="relative size-full rounded object-cover"
-                            >
-                          </div>
-                          <div class="flex-1 min-w-0">
-                            <div class="truncate font-medium text-xs leading-tight">
-                              {{ planItem.name }}
-                            </div>
-                            <div class="text-[10px] text-muted-foreground mt-0.5">
-                              拥有: {{ planItem.actualNum }}
-                            </div>
-                          </div>
-                        </div>
-                        <div class="flex items-center gap-1 mt-2">
-                          <span class="text-[10px] text-muted-foreground">需要:</span>
-                          <Input
-                            v-model.number="planItem.requiredNum"
-                            type="number"
-                            min="0"
-                            class="h-6 text-xs px-1 flex-1"
-                            @input="calculateShortage(planItem)"
-                          />
-                        </div>
-                        <div
-                          class="text-[10px] font-medium mt-1 text-center"
-                          :class="planItem.shortage > 0 ? 'text-destructive' : 'text-green-600'"
-                        >
-                          {{ planItem.shortage > 0 ? `缺少 ${planItem.shortage}` : '✓ 充足' }}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <PlanPanel
+            :current-plan-name="currentPlanName"
+            :has-unsaved-changes="hasUnsavedChanges"
+            :saved-plans="savedPlans"
+            :current-plan-id="currentPlanId"
+            :plan-filter="planFilter"
+            :is-plan-empty="isPlanEmpty"
+            :filtered-avatar-plans="filteredAvatarPlans"
+            :avatar-plan-loading="avatarPlanLoading"
+            :filtered-plan="filteredPlan"
+            :get-quality-background="getQualityBackground"
+            :get-wiki-avatar-icon-url="getWikiAvatarIconUrl"
+            @create-plan="createNewPlan"
+            @select-plan="tryLoadPlan"
+            @quick-save="quickSave"
+            @open-save-as="openSaveAsDialog"
+            @open-rename="openRenameDialog"
+            @open-delete="openDeleteDialog"
+            @open-calculator="showCalculatorDialog = true"
+            @set-filter="setPlanFilter"
+            @avatar-plan-input="handleAvatarPlanInput"
+            @remove-avatar-plan="removeAvatarPlan"
+            @remove-plan-item="removeFromPlan"
+            @update-shortage="calculateShortage"
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
 
-    <!-- Toast 通知组件 -->
     <Toaster />
 
-    <!-- QR Code Dialog -->
-    <Dialog v-model:open="showQRDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>米哈游登录二维码</DialogTitle>
-          <DialogDescription>
-            请使用米游社APP扫描二维码登录
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="flex flex-col items-center space-y-4 py-4">
-          <div v-if="qrLoginBase64" class="border rounded-lg p-4 bg-white">
-            <img
-              :src="qrLoginBase64"
-              alt="登录二维码"
-              class="w-64 h-64 object-contain"
-            >
-          </div>
-          <div v-else class="text-center text-muted-foreground">
-            二维码加载中...
-          </div>
-
-          <div class="text-center space-y-2">
-            <div v-if="qrCountdown" class="text-2xl font-mono font-bold" :class="qrCountdown === '已过期' ? 'text-destructive' : 'text-primary'">
-              {{ qrCountdown }}
-            </div>
-            <div class="text-sm text-muted-foreground">
-              <span v-if="isPolling" class="flex items-center justify-center gap-1">
-                <span class="animate-pulse">●</span> 正在等待扫码...
-              </span>
-              <span v-else-if="qrCountdown === '已过期'">
-                二维码已过期，请重新获取
-              </span>
-              <span v-else>
-                请使用米游社扫描二维码
-              </span>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 角色选择 Dialog -->
-    <Dialog v-model:open="showAvatarDialog">
-      <DialogContent class="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>选择角色计算材料</DialogTitle>
-          <DialogDescription>
-            点击角色计算 1→90 等级 + 天赋 10/10/10 所需材料
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="flex-grow overflow-y-auto py-4">
-          <div v-if="allAvatars.length === 0" class="text-center text-muted-foreground py-8">
-            <div v-if="isLoadingAvatars">
-              正在加载角色列表...
-            </div>
-            <div v-else>
-              暂无角色数据
-            </div>
-          </div>
-          <div v-else class="grid grid-cols-6 gap-3">
-            <div
-              v-for="avatar in allAvatars"
-              :key="avatar.id"
-              class="flex flex-col items-center p-2 rounded-lg border hover:bg-accent cursor-pointer transition-colors"
-              @click="calculateAvatarMaterials(avatar)"
-            >
-              <img
-                :src="avatar.icon"
-                :alt="avatar.name"
-                class="w-16 h-16 rounded"
-              >
-              <span class="text-xs mt-1 text-center truncate w-full">{{ avatar.name }}</span>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 保存计划 Dialog -->
-    <Dialog v-model:open="showSaveDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>💾 保存养成计划</DialogTitle>
-          <DialogDescription>
-            请为这个养成计划取一个名字
-          </DialogDescription>
-        </DialogHeader>
-        <div class="flex flex-col gap-4 py-4">
-          <Input
-            v-model="newPlanName"
-            type="text"
-            placeholder="输入计划名称..."
-            class="w-full"
-            @keyup.enter="saveCurrentPlan"
-          />
-          <div class="flex justify-end gap-2">
-            <Button variant="outline" @click="showSaveDialog = false">
-              取消
-            </Button>
-            <Button @click="saveCurrentPlan">
-              保存
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 重命名计划 Dialog -->
-    <Dialog v-model:open="showRenameDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>✏️ 重命名计划</DialogTitle>
-          <DialogDescription>
-            输入新的计划名称
-          </DialogDescription>
-        </DialogHeader>
-        <div class="flex flex-col gap-4 py-4">
-          <Input
-            v-model="newPlanName"
-            type="text"
-            placeholder="输入新名称..."
-            class="w-full"
-            @keyup.enter="renamePlan"
-          />
-          <div class="flex justify-end gap-2">
-            <Button variant="outline" @click="showRenameDialog = false">
-              取消
-            </Button>
-            <Button @click="renamePlan">
-              确认
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 删除确认 Dialog -->
-    <Dialog v-model:open="showDeleteConfirmDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>🗑️ 删除计划</DialogTitle>
-          <DialogDescription>
-            确定要删除计划 "{{ currentPlanName }}" 吗？此操作无法撤销。
-          </DialogDescription>
-        </DialogHeader>
-        <div class="flex justify-end gap-2 py-4">
-          <Button variant="outline" @click="showDeleteConfirmDialog = false">
-            取消
-          </Button>
-          <Button variant="destructive" @click="deleteCurrentPlan">
-            删除
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 未保存更改提示 Dialog -->
-    <Dialog v-model:open="showUnsavedDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>⚠️ 有未保存的更改</DialogTitle>
-          <DialogDescription>
-            当前计划有未保存的更改，你要如何处理？
-          </DialogDescription>
-        </DialogHeader>
-        <div class="flex justify-end gap-2 py-4">
-          <Button variant="outline" @click="handleUnsavedChoice('cancel')">
-            取消
-          </Button>
-          <Button variant="secondary" @click="handleUnsavedChoice('discard')">
-            放弃更改
-          </Button>
-          <Button @click="handleUnsavedChoice('save')">
-            保存并继续
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 角色材料计算器 Dialog -->
-    <AvatarCalculatorDialog
-      v-model:open="showCalculatorDialog"
-      @add-materials="handleAddCalculatedMaterials"
+    <QrLoginDialog
+      v-model:open="showQRDialog"
+      :qr-login-base64="qrLoginBase64"
+      :qr-countdown="qrCountdown"
+      :is-polling="isPolling"
     />
 
-    <!-- 更新提示 Dialog -->
-    <Dialog v-model:open="showUpdateDialog">
-      <DialogContent class="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>🎉 发现新版本 v{{ updateAvailable?.version }}</DialogTitle>
-        </DialogHeader>
+    <AvatarSelectDialog
+      v-model:open="showAvatarDialog"
+      :all-avatars="allAvatars"
+      :is-loading-avatars="isLoadingAvatars"
+      @select-avatar="calculateAvatarMaterials"
+    />
 
-        <div class="flex-grow overflow-y-auto py-4 space-y-4">
-          <div v-if="updateAvailable?.body" class="prose prose-sm dark:prose-invert max-w-none" v-html="updateBodyHtml" />
+    <PlanDialogs
+      v-model:save-open="showSaveDialog"
+      v-model:rename-open="showRenameDialog"
+      v-model:delete-open="showDeleteConfirmDialog"
+      v-model:unsaved-open="showUnsavedDialog"
+      v-model:plan-name="newPlanName"
+      :current-plan-name="currentPlanName"
+      @save="saveCurrentPlan"
+      @rename="renamePlan"
+      @delete="deleteCurrentPlan"
+      @unsaved-choice="handleUnsavedChoice"
+    />
 
-          <!-- 下载进度 -->
-          <div v-if="isDownloadingUpdate" class="space-y-2">
-            <div class="text-sm text-muted-foreground">
-              正在下载更新...
-            </div>
-            <div class="w-full bg-muted rounded-full h-2">
-              <div
-                class="bg-primary h-2 rounded-full transition-all duration-300"
-                :style="{ width: updateProgress.total > 0 ? `${(updateProgress.downloaded / updateProgress.total) * 100}%` : '0%' }"
-              />
-            </div>
-            <div class="text-xs text-muted-foreground text-right">
-              {{ updateProgress.total > 0 ? `${Math.round(updateProgress.downloaded / 1024 / 1024 * 100) / 100} / ${Math.round(updateProgress.total / 1024 / 1024 * 100) / 100} MB` : '准备中...' }}
-            </div>
-          </div>
-        </div>
+    <AvatarCalculatorDialog
+      v-model:open="showCalculatorDialog"
+      @add-avatar-plans="handleAddAvatarPlans"
+    />
 
-        <div class="flex justify-end gap-2 flex-shrink-0">
-          <Button :disabled="isDownloadingUpdate" @click="handleDownloadAndInstall">
-            {{ isDownloadingUpdate ? '下载中...' : '立即更新' }}
-          </Button>
-          <Button variant="outline" :disabled="isDownloadingUpdate" @click="showUpdateDialog = false">
-            稍后再说
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <UpdateDialog
+      v-model:open="showUpdateDialog"
+      :update-available="updateAvailable"
+      :update-body-html="updateBodyHtml"
+      :is-downloading-update="isDownloadingUpdate"
+      :update-progress="updateProgress"
+      @download="handleDownloadAndInstall"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Avatar } from '@/entity/calculator/Avatar'
-import type { PlanItem, SavedPlan } from '@/entity/InventoryItem.ts'
+import type { AvatarPlan, PlanItem, SavedPlan } from '@/entity/InventoryItem.ts'
+import type { OverallConsume } from '@/entity/OverallConsume'
 import type { QrLogin } from '@/entity/remote/QrLogin.ts'
+import type { AvatarCalculatorConfig } from '@/entity/wiki/WikiAvatar'
 import type { CalculatedMaterial } from '@/entity/wiki/WikiItem'
 import { marked } from 'marked'
-import { AnimatePresence, Motion } from 'motion-v'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import qualityBlue from '@/assets/level_background/UI_QUALITY_BLUE.png'
@@ -617,18 +121,13 @@ import qualityPurple from '@/assets/level_background/UI_QUALITY_PURPLE.png'
 import qualityRed from '@/assets/level_background/UI_QUALITY_RED.png'
 import qualityWhite from '@/assets/level_background/UI_QUALITY_WHITE.png'
 import AvatarCalculatorDialog from '@/components/calculator/AvatarCalculatorDialog.vue'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
+import AvatarSelectDialog from '@/components/home/AvatarSelectDialog.vue'
+import DebugPanel from '@/components/home/DebugPanel.vue'
+import ItemLibraryPanel from '@/components/home/ItemLibraryPanel.vue'
+import PlanDialogs from '@/components/home/PlanDialogs.vue'
+import PlanPanel from '@/components/home/PlanPanel.vue'
+import QrLoginDialog from '@/components/home/QrLoginDialog.vue'
+import UpdateDialog from '@/components/home/UpdateDialog.vue'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Toaster } from '@/components/ui/sonner'
 import { httpHeaderManager } from '@/entity/HttpHeaderManager'
@@ -647,7 +146,9 @@ import {
   generateQRCode,
 } from '@/service/MHYService.ts'
 import { checkForUpdate, downloadAndInstallUpdate, relaunchApp } from '@/service/UpdateService'
+import { getWikiAvatarIconUrl } from '@/service/WikiService'
 import { useAuthStore } from '@/store/store'
+import { convertToCalculatedMaterials, calculateAvatarMaterials as fetchAvatarMaterialsMap } from '@/utils/materialCalculator'
 import 'vue-sonner/style.css'
 
 // 根据稀有度获取背景图片
@@ -672,18 +173,21 @@ function getQualityBackground(rarity: number | undefined): string {
   }
 }
 
-// 接口定义 - 兼容原有数据格式
-interface OverallConsume {
-  id: number
-  name: string
-  icon: string
-  num: number
-  wiki_url: string
-  level: number
-  icon_url: string
-  lack_num: number
-  rarity?: number // 稀有度，默认为1
-  actualNum?: number // 计算出的实际拥有数量
+interface AvatarPlanMaterialView extends CalculatedMaterial {
+  actualNum: number
+  shortage: number
+}
+
+interface AvatarPlanView {
+  plan: AvatarPlan
+  displayMaterials: AvatarPlanMaterialView[]
+  shortageCount: number
+  totalMaterials: number
+}
+
+interface AvatarPlanPayload {
+  config: AvatarCalculatorConfig
+  materials: CalculatedMaterial[]
 }
 
 // 响应式数据
@@ -691,8 +195,10 @@ const showDebugInfo = ref(false)
 const searchQuery = ref('')
 const items = ref<OverallConsume[]>([])
 const cultivationPlan = ref<PlanItem[]>([])
+const avatarPlans = ref<AvatarPlan[]>([])
 const planFilter = ref<'all' | 'shortage'>('all')
 const loginPayload = ref<string | null>(null)
+const avatarPlanLoading = ref<Record<string, boolean>>({})
 
 // 使用 store 管理认证数据
 const authStore = useAuthStore()
@@ -713,6 +219,7 @@ const newPlanName = ref('')
 const hasUnsavedChanges = ref(false)
 const SAVED_PLANS_KEY = 'mhy_saved_plans'
 const CURRENT_PLAN_ID_KEY = 'mhy_current_plan_id'
+const AVATAR_PLANS_KEY = 'mhy_avatar_plans'
 
 // 角色选择器状态
 const allAvatars = ref<Avatar[]>([])
@@ -790,8 +297,46 @@ const filteredPlan = computed(() => {
   return computedPlan.value
 })
 
+const filteredAvatarPlans = computed<AvatarPlanView[]>(() => {
+  return avatarPlans.value.map((plan) => {
+    const sourceMaterials = Array.isArray(plan.materials) ? plan.materials : []
+    const materialsView = sourceMaterials.map((material) => {
+      const inventoryItem = items.value.find(item => item.id === material.id)
+      const actualNum = inventoryItem?.actualNum ?? 0
+      const shortage = Math.max(0, material.num - actualNum)
+
+      return {
+        ...material,
+        actualNum,
+        shortage,
+      }
+    })
+
+    const displayMaterials = planFilter.value === 'shortage'
+      ? materialsView.filter(material => material.shortage > 0)
+      : materialsView
+
+    const shortageCount = materialsView.filter(material => material.shortage > 0).length
+
+    return {
+      plan,
+      displayMaterials,
+      shortageCount,
+      totalMaterials: materialsView.length,
+    }
+  }).filter((entry) => {
+    if (planFilter.value !== 'shortage') {
+      return true
+    }
+    return entry.displayMaterials.length > 0
+  })
+})
+
+const isPlanEmpty = computed(() => cultivationPlan.value.length === 0 && avatarPlans.value.length === 0)
+
 // LocalStorage 缓存 Key
 const INVENTORY_CACHE_KEY = 'mhy_inventory_items'
+const avatarPlanTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 // 方法
 function loadItemsData() {
@@ -975,8 +520,27 @@ function addToPlan(item: OverallConsume) {
   calculateShortage(planItem)
   cultivationPlan.value.push(planItem)
 
-  // 保存到本地存储
-  savePlanToStorage()
+  // 如果没有当前计划，自动创建"未命名的养成计划"
+  if (!currentPlanId.value) {
+    const now = Date.now()
+    const newPlan: SavedPlan = {
+      id: `plan_${now}`,
+      name: '未命名的养成计划',
+      items: JSON.parse(JSON.stringify(cultivationPlan.value)),
+      avatarPlans: JSON.parse(JSON.stringify(avatarPlans.value)),
+      createdAt: now,
+      updatedAt: now,
+    }
+    savedPlans.value.push(newPlan)
+    currentPlanId.value = newPlan.id
+    hasUnsavedChanges.value = false
+    localStorage.setItem(CURRENT_PLAN_ID_KEY, newPlan.id)
+    persistAllPlans()
+  }
+  else {
+    // 保存到本地存储
+    savePlanToStorage()
+  }
 
   // 显示成功提示
   toast('物品已添加到养成计划', {
@@ -993,64 +557,154 @@ function removeFromPlan(itemId: number) {
   }
 }
 
-// 处理计算器添加的材料
-function handleAddCalculatedMaterials(materials: CalculatedMaterial[]) {
+function getAvatarPlanId(avatarId: number): string {
+  return `avatar_${avatarId}`
+}
+
+// 处理计算器添加的角色计划
+function handleAddAvatarPlans(plans: AvatarPlanPayload[]) {
   let addedCount = 0
   let updatedCount = 0
+  const now = Date.now()
 
-  for (const material of materials) {
-    // 检查是否已经在计划中
-    const existingIndex = cultivationPlan.value.findIndex(planItem => planItem.id === material.id)
+  for (const plan of plans) {
+    if (!plan?.config?.avatar) {
+      continue
+    }
 
-    // 尝试从背包数据中获取物品信息（优先使用米哈游 API 的数据）
-    const inventoryItem = items.value.find(item => item.id === material.id)
+    const planId = getAvatarPlanId(plan.config.avatar._id)
+    const existingIndex = avatarPlans.value.findIndex(item => item.id === planId)
 
     if (existingIndex !== -1) {
-      // 已存在，累加数量
-      cultivationPlan.value[existingIndex]!.requiredNum += material.num
-      calculateShortage(cultivationPlan.value[existingIndex]!)
+      const existing = avatarPlans.value[existingIndex]!
+      avatarPlans.value[existingIndex] = {
+        ...existing,
+        config: plan.config,
+        materials: plan.materials,
+        updatedAt: now,
+      }
       updatedCount++
     }
     else {
-      // 不存在，新增
-      const actualNum = inventoryItem?.actualNum ?? 0
-
-      const planItem: PlanItem = {
-        id: material.id,
-        // 优先使用米哈游 API 返回的数据
-        name: inventoryItem?.name ?? material.name,
-        icon: inventoryItem?.icon ?? material.icon,
-        icon_url: inventoryItem?.icon_url ?? material.icon_url ?? '',
-        num: material.num,
-        level: inventoryItem?.level ?? material.level,
-        rarity: inventoryItem?.rarity ?? material.rarity,
-        wiki_url: material.wiki_url,
-        actualNum,
-        requiredNum: material.num,
-        shortage: Math.max(0, material.num - actualNum),
-      }
-
-      cultivationPlan.value.push(planItem)
+      avatarPlans.value.push({
+        id: planId,
+        config: plan.config,
+        materials: plan.materials,
+        createdAt: now,
+        updatedAt: now,
+      })
       addedCount++
     }
   }
 
-  // 保存到本地存储
-  savePlanToStorage()
+  // 如果没有当前计划，自动创建一个
+  if (!currentPlanId.value && (addedCount > 0 || updatedCount > 0)) {
+    // 生成计划名称：角色名用下划线连接，最多3个，超出用...
+    const avatarNames = plans
+      .filter(p => p?.config?.avatar)
+      .map(p => p.config.avatar.Name)
+      .slice(0, 3)
 
-  // 显示成功提示
+    let planName = avatarNames.join('_')
+    if (plans.length > 3) {
+      planName += '...'
+    }
+
+    // 创建新计划
+    const newPlan: SavedPlan = {
+      id: `plan_${Date.now()}`,
+      name: planName,
+      items: JSON.parse(JSON.stringify(cultivationPlan.value)),
+      avatarPlans: JSON.parse(JSON.stringify(avatarPlans.value)),
+      createdAt: now,
+      updatedAt: now,
+    }
+    savedPlans.value.push(newPlan)
+    currentPlanId.value = newPlan.id
+    hasUnsavedChanges.value = false
+    localStorage.setItem(CURRENT_PLAN_ID_KEY, newPlan.id)
+    persistAllPlans()
+  }
+  else if (addedCount > 0 || updatedCount > 0) {
+    savePlanToStorage()
+  }
+
   const messages: string[] = []
   if (addedCount > 0) {
-    messages.push(`新增 ${addedCount} 种材料`)
+    messages.push(`新增 ${addedCount} 个角色`)
   }
   if (updatedCount > 0) {
-    messages.push(`更新 ${updatedCount} 种材料`)
+    messages.push(`更新 ${updatedCount} 个角色`)
   }
 
-  toast('材料已添加到养成计划', {
-    description: messages.join('，'),
-    duration: 3000,
-  })
+  if (messages.length > 0) {
+    toast('角色材料已添加到养成计划', {
+      description: messages.join('，'),
+      duration: 3000,
+    })
+  }
+}
+
+function handleAvatarPlanInput(planId: string) {
+  const plan = avatarPlans.value.find(item => item.id === planId)
+  if (!plan) {
+    return
+  }
+
+  plan.updatedAt = Date.now()
+  savePlanToStorage()
+  scheduleAvatarPlanRecalculation(planId)
+}
+
+function scheduleAvatarPlanRecalculation(planId: string) {
+  const timer = avatarPlanTimers.get(planId)
+  if (timer) {
+    clearTimeout(timer)
+  }
+
+  avatarPlanTimers.set(planId, setTimeout(() => {
+    void fetchAvatarPlanMaterials(planId)
+  }, 300))
+}
+
+async function fetchAvatarPlanMaterials(planId: string) {
+  const plan = avatarPlans.value.find(item => item.id === planId)
+  if (!plan) {
+    return
+  }
+
+  avatarPlanLoading.value = { ...avatarPlanLoading.value, [planId]: true }
+  try {
+    const materialMap = await fetchAvatarMaterialsMap(plan.config)
+    const materials = await convertToCalculatedMaterials(materialMap)
+    plan.materials = materials
+    plan.updatedAt = Date.now()
+    savePlanToStorage()
+  }
+  catch (error) {
+    console.error('计算角色材料失败:', error)
+    toast('角色材料计算失败', {
+      description: error instanceof Error ? error.message : '未知错误',
+      duration: 4000,
+    })
+  }
+  finally {
+    avatarPlanLoading.value = { ...avatarPlanLoading.value, [planId]: false }
+  }
+}
+
+function removeAvatarPlan(planId: string) {
+  const timer = avatarPlanTimers.get(planId)
+  if (timer) {
+    clearTimeout(timer)
+    avatarPlanTimers.delete(planId)
+  }
+
+  const index = avatarPlans.value.findIndex(item => item.id === planId)
+  if (index !== -1) {
+    avatarPlans.value.splice(index, 1)
+    savePlanToStorage()
+  }
 }
 
 function calculateShortage(planItem: PlanItem) {
@@ -1067,6 +721,7 @@ function setPlanFilter(filter: 'all' | 'shortage') {
 
 function savePlanToStorage() {
   localStorage.setItem('cultivationPlan', JSON.stringify(cultivationPlan.value))
+  localStorage.setItem(AVATAR_PLANS_KEY, JSON.stringify(avatarPlans.value))
   localStorage.setItem('planFilter', planFilter.value)
   // 标记有未保存的修改
   if (currentPlanId.value) {
@@ -1091,21 +746,46 @@ function loadPlanFromStorage() {
   }
   else {
     // 恢复临时养成计划
+    avatarPlans.value = []
     const saved = localStorage.getItem('cultivationPlan')
     if (saved) {
       try {
         const savedPlan = JSON.parse(saved)
-        // 恢复保存的计划，只计算 shortage 但不触发保存
-        cultivationPlan.value = savedPlan.map((item: PlanItem) => {
-          const planItem = { ...item }
-          // 只计算 shortage，不调用 calculateShortage 避免触发保存
-          const shortage = planItem.requiredNum - (planItem.actualNum || 0)
-          planItem.shortage = Math.max(0, shortage)
-          return planItem
-        })
+        if (Array.isArray(savedPlan)) {
+          // 恢复保存的计划，只计算 shortage 但不触发保存
+          cultivationPlan.value = savedPlan.map((item: PlanItem) => {
+            const planItem = { ...item }
+            // 只计算 shortage，不调用 calculateShortage 避免触发保存
+            const shortage = planItem.requiredNum - (planItem.actualNum || 0)
+            planItem.shortage = Math.max(0, shortage)
+            return planItem
+          })
+        }
+        else if (savedPlan && typeof savedPlan === 'object' && Array.isArray(savedPlan.items)) {
+          cultivationPlan.value = savedPlan.items.map((item: PlanItem) => {
+            const planItem = { ...item }
+            const shortage = planItem.requiredNum - (planItem.actualNum || 0)
+            planItem.shortage = Math.max(0, shortage)
+            return planItem
+          })
+          if (Array.isArray(savedPlan.avatarPlans)) {
+            avatarPlans.value = savedPlan.avatarPlans
+          }
+        }
       }
       catch (error) {
         console.error('加载保存的计划失败:', error)
+      }
+    }
+
+    const savedAvatarPlans = localStorage.getItem(AVATAR_PLANS_KEY)
+    if (savedAvatarPlans) {
+      try {
+        avatarPlans.value = JSON.parse(savedAvatarPlans)
+      }
+      catch (error) {
+        console.error('加载角色计划失败:', error)
+        avatarPlans.value = []
       }
     }
   }
@@ -1175,6 +855,7 @@ function saveCurrentPlan() {
       savedPlans.value[planIndex] = {
         ...savedPlans.value[planIndex]!,
         items: JSON.parse(JSON.stringify(cultivationPlan.value)),
+        avatarPlans: JSON.parse(JSON.stringify(avatarPlans.value)),
         updatedAt: now,
       }
     }
@@ -1186,6 +867,7 @@ function saveCurrentPlan() {
       id: generatePlanId(),
       name,
       items: JSON.parse(JSON.stringify(cultivationPlan.value)),
+      avatarPlans: JSON.parse(JSON.stringify(avatarPlans.value)),
       createdAt: now,
       updatedAt: now,
     }
@@ -1212,6 +894,7 @@ function quickSave() {
     savedPlans.value[planIndex] = {
       ...savedPlans.value[planIndex]!,
       items: JSON.parse(JSON.stringify(cultivationPlan.value)),
+      avatarPlans: JSON.parse(JSON.stringify(avatarPlans.value)),
       updatedAt: Date.now(),
     }
     hasUnsavedChanges.value = false
@@ -1244,10 +927,13 @@ function loadPlanById(planId: string, showToast = true) {
   }
 
   cultivationPlan.value = JSON.parse(JSON.stringify(plan.items))
+  avatarPlans.value = JSON.parse(JSON.stringify(plan.avatarPlans ?? []))
+  avatarPlanLoading.value = {}
   currentPlanId.value = planId
   hasUnsavedChanges.value = false
   localStorage.setItem(CURRENT_PLAN_ID_KEY, planId)
   localStorage.setItem('cultivationPlan', JSON.stringify(cultivationPlan.value))
+  localStorage.setItem(AVATAR_PLANS_KEY, JSON.stringify(avatarPlans.value))
 
   if (showToast) {
     toast('已切换到计划', { description: plan.name, duration: 2000 })
@@ -1299,10 +985,13 @@ function createNewPlan() {
 
 function doCreateNewPlan() {
   cultivationPlan.value = []
+  avatarPlans.value = []
+  avatarPlanLoading.value = {}
   currentPlanId.value = null
   hasUnsavedChanges.value = false
   localStorage.removeItem(CURRENT_PLAN_ID_KEY)
   localStorage.setItem('cultivationPlan', JSON.stringify([]))
+  localStorage.setItem(AVATAR_PLANS_KEY, JSON.stringify([]))
   toast('已创建新计划', { duration: 2000 })
 }
 
@@ -1361,9 +1050,12 @@ function deleteCurrentPlan() {
   // 重置到新计划状态
   currentPlanId.value = null
   cultivationPlan.value = []
+  avatarPlans.value = []
+  avatarPlanLoading.value = {}
   hasUnsavedChanges.value = false
   localStorage.removeItem(CURRENT_PLAN_ID_KEY)
   localStorage.setItem('cultivationPlan', JSON.stringify([]))
+  localStorage.setItem(AVATAR_PLANS_KEY, JSON.stringify([]))
 
   showDeleteConfirmDialog.value = false
   toast('计划已删除', { description: planName, duration: 2000 })
@@ -1697,7 +1389,7 @@ async function handleDownloadAndInstall() {
 }
 </script>
 
-<style scoped>
+<style>
 /* 悬浮滚动条样式 */
 .scrollbar-overlay {
   /* 设置滚动条样式 */

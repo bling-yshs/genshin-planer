@@ -1,6 +1,6 @@
 {
   "productName": "genshin-planner",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "identifier": "com.genshin-planner.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -10,7 +10,13 @@
   },
   "app": {
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPCACHE/**"
+        ]
+      }
     }
   },
   "bundle": {

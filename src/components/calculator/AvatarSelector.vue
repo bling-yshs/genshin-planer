@@ -30,24 +30,6 @@
       </DropdownMenu>
     </div>
 
-    <!-- 已选择的角色 -->
-    <div v-if="modelValue.length > 0" class="flex gap-2 flex-wrap mb-3 p-2 bg-muted rounded-lg flex-shrink-0 max-h-24 overflow-y-auto">
-      <div
-        v-for="avatar in modelValue"
-        :key="avatar._id"
-        class="flex items-center gap-1 px-2 py-1 bg-background rounded text-sm"
-      >
-        <img :src="getWikiAvatarIconUrl(avatar)" class="w-5 h-5 rounded" alt="">
-        <span>{{ avatar.Name }}</span>
-        <button
-          class="ml-1 text-muted-foreground hover:text-destructive"
-          @click="toggleSelect(avatar)"
-        >
-          ×
-        </button>
-      </div>
-    </div>
-
     <!-- 角色网格 -->
     <div class="flex-1 overflow-y-auto min-h-0">
       <div v-if="loading" class="text-center py-8 text-muted-foreground">
@@ -66,11 +48,11 @@
           @click="toggleSelect(avatar)"
         >
           <div class="relative">
-            <img
+            <CachedImage
               :src="getWikiAvatarIconUrl(avatar)"
               :alt="avatar.Name"
               class="w-14 h-14 rounded"
-            >
+            />
             <div
               v-if="isSelected(avatar)"
               class="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs"
@@ -89,15 +71,52 @@
         </div>
       </div>
     </div>
+
+    <!-- 已选择的角色（移到底部） -->
+    <AnimatePresence>
+      <Motion
+        v-if="modelValue.length > 0"
+        :initial="{ opacity: 0, height: 0, marginTop: 0 }"
+        :animate="{ opacity: 1, height: 'auto', marginTop: 12 }"
+        :exit="{ opacity: 0, height: 0, marginTop: 0 }"
+        :transition="{ duration: 0.3, ease: 'easeOut' }"
+        class="overflow-hidden"
+      >
+        <div class="flex gap-2 flex-wrap p-2 bg-muted rounded-lg max-h-24 overflow-y-auto">
+          <AnimatePresence>
+            <Motion
+              v-for="avatar in modelValue"
+              :key="avatar._id"
+              :initial="{ opacity: 0, scale: 0.8 }"
+              :animate="{ opacity: 1, scale: 1 }"
+              :exit="{ opacity: 0, scale: 0.8 }"
+              :transition="{ duration: 0.2, ease: 'easeOut' }"
+              class="flex items-center gap-1 px-2 py-1 bg-background rounded text-sm"
+            >
+              <CachedImage :src="getWikiAvatarIconUrl(avatar)" class="w-5 h-5 rounded" alt="" />
+              <span>{{ avatar.Name }}</span>
+              <button
+                class="ml-1 text-muted-foreground hover:text-destructive"
+                @click="toggleSelect(avatar)"
+              >
+                ×
+              </button>
+            </Motion>
+          </AnimatePresence>
+        </div>
+      </Motion>
+    </AnimatePresence>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { AnimatePresence, Motion } from 'motion-v'
 import type { WikiAvatarInfo } from '@/entity/wiki/WikiAvatar'
 import { ELEMENT_NAMES } from '@/entity/wiki/WikiAvatar'
 import { getWikiAvatarIconUrl } from '@/service/WikiService'
 import { Button } from '@/components/ui/button'
+import CachedImage from '@/components/common/CachedImage.vue'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,

@@ -44,6 +44,7 @@
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.5.0",
     "vue-draggable-plus": "0.6.0",
+    "vue-virtual-scroller": "^2.0.0-beta.8",
     "@iconify-json/mdi": "^1.2.3",
     "unplugin-icons": "^22.5.0",
     "unplugin-vue-components": "^30.0.0",
