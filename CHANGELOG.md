@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-01-18
+
 ### Changed
 
 - **⚠ 破坏性更新**
@@ -43,6 +45,7 @@
 - 支持角色/武器材料计算
 - 支持养成计划管理
 
-[Unreleased]: https://github.com/bling-yshs/genshin-planer/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/bling-yshs/genshin-planer/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/bling-yshs/genshin-planer/commits/v0.1.0
 [0.0.5]: https://github.com/bling-yshs/genshin-planer/commits/v0.0.5
 [0.0.5]: https://github.com/bling-yshs/genshin-planer/commits/v0.0.5
