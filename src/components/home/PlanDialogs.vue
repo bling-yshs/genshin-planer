@@ -1,9 +1,9 @@
 <template>
   <Dialog v-model:open="saveOpenModel">
-    <DialogContent class="sm:max-w-md glass-card border-2">
+    <DialogContent class="sm:max-w-md border-2">
       <DialogHeader>
-        <DialogTitle class="text-gradient-accent">
-          ?? 保存养成计划
+        <DialogTitle class="text-primary">
+          💾 保存养成计划
         </DialogTitle>
         <DialogDescription>
           请为这个养成计划取一个名字
@@ -14,14 +14,14 @@
           v-model="planNameModel"
           type="text"
           placeholder="输入计划名称..."
-          class="w-full glass-input"
+          class="w-full"
           @keyup.enter="handleSave"
         />
         <div class="flex justify-end gap-2">
           <Button variant="outline" class="hover:scale-105 active:scale-95" @click="closeSaveDialog">
             取消
           </Button>
-          <Button class="glass-button hover:scale-105 active:scale-95" @click="handleSave">
+          <Button class="hover:scale-105 active:scale-95" @click="handleSave">
             保存
           </Button>
         </div>
@@ -30,10 +30,10 @@
   </Dialog>
 
   <Dialog v-model:open="renameOpenModel">
-    <DialogContent class="sm:max-w-md glass-card border-2">
+    <DialogContent class="sm:max-w-md border-2">
       <DialogHeader>
-        <DialogTitle class="text-gradient-accent">
-          ?? 重命名计划
+        <DialogTitle class="text-primary">
+          ✏️ 重命名计划
         </DialogTitle>
         <DialogDescription>
           输入新的计划名称
@@ -44,14 +44,14 @@
           v-model="planNameModel"
           type="text"
           placeholder="输入新名称..."
-          class="w-full glass-input"
+          class="w-full"
           @keyup.enter="handleRename"
         />
         <div class="flex justify-end gap-2">
           <Button variant="outline" class="hover:scale-105 active:scale-95" @click="closeRenameDialog">
             取消
           </Button>
-          <Button class="glass-button hover:scale-105 active:scale-95" @click="handleRename">
+          <Button class="hover:scale-105 active:scale-95" @click="handleRename">
             确认
           </Button>
         </div>
@@ -83,10 +83,10 @@
   </Dialog>
 
   <Dialog v-model:open="unsavedOpenModel">
-    <DialogContent class="sm:max-w-md glass-card border-2 border-accent/30">
+    <DialogContent class="sm:max-w-md border-2 border-accent/30">
       <DialogHeader>
-        <DialogTitle class="text-gradient-accent">
-          ?? 有未保存的更改
+        <DialogTitle class="text-primary">
+          ⚠️ 有未保存的更改
         </DialogTitle>
         <DialogDescription>
           当前计划有未保存的更改，你要如何处理？
@@ -99,7 +99,7 @@
         <Button variant="secondary" class="hover:scale-105 active:scale-95" @click="handleUnsavedChoice('discard')">
           放弃更改
         </Button>
-        <Button class="glass-button hover:scale-105 active:scale-95" @click="handleUnsavedChoice('save')">
+        <Button class="hover:scale-105 active:scale-95" @click="handleUnsavedChoice('save')">
           保存并继续
         </Button>
       </div>
