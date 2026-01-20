@@ -277,11 +277,36 @@ const filteredItems = computed(() => {
 
 // 动态计算养成计划（自动同步背包数据）
 const computedPlan = computed(() => {
+  // 用于跟踪每种材料的累计消耗（需要考虑角色计划的消耗）
+  const materialConsumption = new Map<number, number>()
+
+  // 先计算所有角色计划的材料消耗
+  avatarPlans.value.forEach((plan) => {
+    const sourceMaterials = Array.isArray(plan.materials) ? plan.materials : []
+    sourceMaterials.forEach((material) => {
+      const previousConsumption = materialConsumption.get(material.id) ?? 0
+      materialConsumption.set(material.id, previousConsumption + material.num)
+    })
+  })
+
+  // 然后计算自定义材料计划
   return cultivationPlan.value.map((planItem) => {
     // 从最新的背包数据中获取实际数量
     const inventoryItem = items.value.find(item => item.id === planItem.id)
-    const actualNum = inventoryItem?.actualNum ?? planItem.actualNum ?? 0
+    const inventoryNum = inventoryItem?.actualNum ?? planItem.actualNum ?? 0
+
+    // 获取该材料之前已经被消耗的数量（包括角色计划的消耗）
+    const previousConsumption = materialConsumption.get(planItem.id) ?? 0
+
+    // 计算实际可用的材料数量
+    const actualNum = Math.max(0, inventoryNum - previousConsumption)
+
+    // 计算缺少数量
     const shortage = Math.max(0, planItem.requiredNum - actualNum)
+
+    // 更新该材料的累计消耗量
+    materialConsumption.set(planItem.id, previousConsumption + planItem.requiredNum)
+
     return {
       ...planItem,
       actualNum,
@@ -298,12 +323,26 @@ const filteredPlan = computed(() => {
 })
 
 const filteredAvatarPlans = computed<AvatarPlanView[]>(() => {
+  // 用于跟踪每种材料的累计消耗
+  const materialConsumption = new Map<number, number>()
+
   return avatarPlans.value.map((plan) => {
     const sourceMaterials = Array.isArray(plan.materials) ? plan.materials : []
     const materialsView = sourceMaterials.map((material) => {
       const inventoryItem = items.value.find(item => item.id === material.id)
-      const actualNum = inventoryItem?.actualNum ?? 0
+      const inventoryNum = inventoryItem?.actualNum ?? 0
+
+      // 获取该材料之前已经被消耗的数量
+      const previousConsumption = materialConsumption.get(material.id) ?? 0
+
+      // 计算当前角色实际可用的材料数量（背包数量 - 之前角色的消耗）
+      const actualNum = Math.max(0, inventoryNum - previousConsumption)
+
+      // 计算当前角色的缺少数量
       const shortage = Math.max(0, material.num - actualNum)
+
+      // 更新该材料的累计消耗量
+      materialConsumption.set(material.id, previousConsumption + material.num)
 
       return {
         ...material,
