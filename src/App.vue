@@ -599,7 +599,7 @@ function handleAddAvatarPlans(plans: AvatarPlanPayload[]) {
 
   // 如果没有当前计划，自动创建一个
   if (!currentPlanId.value && (addedCount > 0 || updatedCount > 0)) {
-    // 生成计划名称：角色名用下划线连接，最多3个，超出用...
+    // 生成计划名称：角色名用下划线连接，最多3个，超出用"等"
     const avatarNames = plans
       .filter(p => p?.config?.avatar)
       .map(p => p.config.avatar.Name)
@@ -607,7 +607,7 @@ function handleAddAvatarPlans(plans: AvatarPlanPayload[]) {
 
     let planName = avatarNames.join('_')
     if (plans.length > 3) {
-      planName += '...'
+      planName += '等'
     }
 
     // 创建新计划

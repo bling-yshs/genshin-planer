@@ -60,12 +60,13 @@
   </Dialog>
 
   <Dialog v-model:open="deleteOpenModel">
-    <DialogContent class="sm:max-w-md glass-card border-2 border-destructive/30">
+    <DialogContent class="sm:max-w-md bg-background border-2 border-destructive/50">
       <DialogHeader>
-        <DialogTitle class="text-destructive">
+        <DialogTitle class="text-destructive flex items-center gap-2">
+          <i-mdi-alert-circle-outline class="size-5" />
           删除计划
         </DialogTitle>
-        <DialogDescription>
+        <DialogDescription class="text-foreground/80">
           确定要删除计划 "{{ currentPlanName }}" 吗？此操作无法撤销。
         </DialogDescription>
       </DialogHeader>
@@ -74,6 +75,7 @@
           取消
         </Button>
         <Button variant="destructive" class="hover:scale-105 active:scale-95" @click="handleDelete">
+          <i-mdi-delete-outline class="size-4 mr-1" />
           删除
         </Button>
       </div>
