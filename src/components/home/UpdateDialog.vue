@@ -1,9 +1,9 @@
 <template>
   <Dialog v-model:open="openModel">
-    <DialogContent class="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col glass-card border-2 border-accent/30">
+    <DialogContent class="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col border-2 border-accent/30">
       <DialogHeader>
-        <DialogTitle class="text-gradient-accent">
-          ?? 发现新版本 v{{ updateAvailable?.version }}
+        <DialogTitle class="text-primary">
+          🎉 发现新版本 v{{ updateAvailable?.version }}
         </DialogTitle>
       </DialogHeader>
 
@@ -27,7 +27,7 @@
       </div>
 
       <div class="flex justify-end gap-2 flex-shrink-0">
-        <Button class="glass-button sparkle hover:scale-105 active:scale-95" :disabled="isDownloadingUpdate" @click="handleDownload">
+        <Button class="sparkle hover:scale-105 active:scale-95" :disabled="isDownloadingUpdate" @click="handleDownload">
           {{ isDownloadingUpdate ? '下载中...' : '立即更新' }}
         </Button>
         <Button variant="outline" class="hover:scale-105 active:scale-95" :disabled="isDownloadingUpdate" @click="handleClose">

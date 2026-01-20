@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="openModel">
-    <DialogContent class="sm:max-w-md glass-card border-2">
+    <DialogContent class="sm:max-w-md bg-background border-2">
       <DialogHeader>
         <DialogTitle class="text-gradient-primary">
           米哈游登录二维码

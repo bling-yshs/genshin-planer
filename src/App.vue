@@ -638,7 +638,7 @@ function handleAddAvatarPlans(plans: AvatarPlanPayload[]) {
 
   // 如果没有当前计划，自动创建一个
   if (!currentPlanId.value && (addedCount > 0 || updatedCount > 0)) {
-    // 生成计划名称：角色名用下划线连接，最多3个，超出用...
+    // 生成计划名称：角色名用下划线连接，最多3个，超出用"等"
     const avatarNames = plans
       .filter(p => p?.config?.avatar)
       .map(p => p.config.avatar.Name)
@@ -646,7 +646,7 @@ function handleAddAvatarPlans(plans: AvatarPlanPayload[]) {
 
     let planName = avatarNames.join('_')
     if (plans.length > 3) {
-      planName += '...'
+      planName += '等'
     }
 
     // 创建新计划
@@ -1429,44 +1429,4 @@ async function handleDownloadAndInstall() {
 </script>
 
 <style>
-/* 悬浮滚动条样式 */
-.scrollbar-overlay {
-  /* 设置滚动条样式 */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-}
-
-/* Webkit 浏览器滚动条样式 */
-.scrollbar-overlay::-webkit-scrollbar {
-  width: 8px;
-}
-
-.scrollbar-overlay::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-overlay::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.scrollbar-overlay::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.8);
-}
-
-/* 转圈动画 */
-.spinner-rotate {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 </style>

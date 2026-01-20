@@ -80,7 +80,7 @@
           :animate="{ opacity: 1, y: 0 }"
           :exit="{ opacity: 0, y: -8 }"
           :transition="{ duration: 0.3, ease: 'easeOut' }"
-          class="mt-3"
+          class="mt-6"
         >
           <div class="flex w-full items-start">
             <template v-for="(item, index) in inventorySteps" :key="item.step">
