@@ -160,7 +160,7 @@ fn main() {
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![greet, execute_js_get_variable])
         .setup(move |app| {
-            let _main_window_result = tauri::WebviewWindowBuilder::new(
+            let mut builder = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
                 tauri::WebviewUrl::App("index.html".into()),
@@ -168,8 +168,14 @@ fn main() {
             .title("genshin-planner")
             .center()
             .visible(true)
-            .maximized(true)
-            .build();
+            .maximized(true);
+
+            #[cfg(target_os = "windows")]
+            {
+                builder = builder.scroll_bar_style(tauri::webview::ScrollBarStyle::FluentOverlay);
+            }
+
+            let _main_window_result = builder.build();
             Ok(())
         })
         .run(tauri::generate_context!())

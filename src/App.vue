@@ -1429,44 +1429,4 @@ async function handleDownloadAndInstall() {
 </script>
 
 <style>
-/* 悬浮滚动条样式 */
-.scrollbar-overlay {
-  /* 设置滚动条样式 */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-}
-
-/* Webkit 浏览器滚动条样式 */
-.scrollbar-overlay::-webkit-scrollbar {
-  width: 8px;
-}
-
-.scrollbar-overlay::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-overlay::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.scrollbar-overlay::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.8);
-}
-
-/* 转圈动画 */
-.spinner-rotate {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 </style>
