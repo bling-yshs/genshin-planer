@@ -93,3 +93,139 @@ export const useUserStore = defineStore('user', () => {
     setPlanFilter,
   }
 })
+
+/**
+ * 角色养成预设配置
+ */
+export interface AvatarPreset {
+  id: string // 唯一标识
+  name: string // 预设名称，如 "90级 1/9/9"
+  levelFrom: number // 起始等级
+  levelTo: number // 目标等级
+  talentAFrom: number // 普攻起始等级
+  talentEFrom: number // 元素战技起始等级
+  talentQFrom: number // 元素爆发起始等级
+  talentA: number // 普攻目标等级
+  talentE: number // 元素战技目标等级
+  talentQ: number // 元素爆发目标等级
+}
+
+/**
+ * 预设管理状态
+ */
+export const usePresetStore = defineStore(
+  'preset',
+  () => {
+    // 快捷预设区（显示在外面的快捷设置按钮）
+    const quickPresets = ref<AvatarPreset[]>([
+      {
+        id: 'preset-90-10',
+        name: '90级 天赋10',
+        levelFrom: 1,
+        levelTo: 90,
+        talentAFrom: 1,
+        talentEFrom: 1,
+        talentQFrom: 1,
+        talentA: 10,
+        talentE: 10,
+        talentQ: 10,
+      },
+      {
+        id: 'preset-80-8',
+        name: '80级 天赋8',
+        levelFrom: 1,
+        levelTo: 80,
+        talentAFrom: 1,
+        talentEFrom: 1,
+        talentQFrom: 1,
+        talentA: 8,
+        talentE: 8,
+        talentQ: 8,
+      },
+      {
+        id: 'preset-70-6',
+        name: '70级 天赋6',
+        levelFrom: 1,
+        levelTo: 70,
+        talentAFrom: 1,
+        talentEFrom: 1,
+        talentQFrom: 1,
+        talentA: 6,
+        talentE: 6,
+        talentQ: 6,
+      },
+    ])
+
+    // 暂存区预设（不显示在外面）
+    const storagePresets = ref<AvatarPreset[]>([])
+
+    // 添加预设（默认添加到暂存区）
+    function addPreset(preset: Omit<AvatarPreset, 'id'>) {
+      const newPreset: AvatarPreset = {
+        ...preset,
+        id: `preset-${Date.now()}`,
+      }
+      storagePresets.value.push(newPreset)
+      return newPreset
+    }
+
+    // 更新预设
+    function updatePreset(id: string, preset: Partial<AvatarPreset>) {
+      // 在快捷预设中查找
+      let index = quickPresets.value.findIndex(p => p.id === id)
+      if (index !== -1) {
+        quickPresets.value[index] = { ...quickPresets.value[index], ...preset }
+        return
+      }
+      // 在暂存区中查找
+      index = storagePresets.value.findIndex(p => p.id === id)
+      if (index !== -1) {
+        storagePresets.value[index] = { ...storagePresets.value[index], ...preset }
+      }
+    }
+
+    // 删除预设
+    function deletePreset(id: string) {
+      // 从快捷预设中删除
+      let index = quickPresets.value.findIndex(p => p.id === id)
+      if (index !== -1) {
+        quickPresets.value.splice(index, 1)
+        return
+      }
+      // 从暂存区中删除
+      index = storagePresets.value.findIndex(p => p.id === id)
+      if (index !== -1) {
+        storagePresets.value.splice(index, 1)
+      }
+    }
+
+    // 根据 ID 获取预设
+    function getPresetById(id: string) {
+      return quickPresets.value.find(p => p.id === id) || storagePresets.value.find(p => p.id === id)
+    }
+
+    // 设置快捷预设列表（用于拖拽后更新）
+    function setQuickPresets(presets: AvatarPreset[]) {
+      quickPresets.value = presets
+    }
+
+    // 设置暂存区列表（用于拖拽后更新）
+    function setStoragePresets(presets: AvatarPreset[]) {
+      storagePresets.value = presets
+    }
+
+    return {
+      quickPresets,
+      storagePresets,
+      addPreset,
+      updatePreset,
+      deletePreset,
+      getPresetById,
+      setQuickPresets,
+      setStoragePresets,
+    }
+  },
+  {
+    persist: true,
+  },
+)
