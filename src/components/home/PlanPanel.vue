@@ -118,10 +118,33 @@
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          <Tabs :model-value="displayMode" @update:model-value="(value) => handleSetDisplayMode(value as 'byAvatar' | 'merged')">
+            <TabsList class="w-fit h-9 p-1 gap-1">
+              <TabsTrigger value="byAvatar" class="relative px-3 py-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                <motion.span
+                  v-if="displayMode === 'byAvatar'"
+                  layoutId="display-mode-indicator"
+                  class="absolute inset-0 rounded-md bg-background shadow-sm"
+                  :transition="{ type: 'spring', stiffness: 380, damping: 30 }"
+                />
+                <span class="relative z-10">按角色展示</span>
+              </TabsTrigger>
+              <TabsTrigger value="merged" class="relative px-3 py-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                <motion.span
+                  v-if="displayMode === 'merged'"
+                  layoutId="display-mode-indicator"
+                  class="absolute inset-0 rounded-md bg-background shadow-sm"
+                  :transition="{ type: 'spring', stiffness: 380, damping: 30 }"
+                />
+                <span class="relative z-10">合并展示</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         <div class="flex-grow overflow-y-auto scrollbar-overlay min-h-0 pb-3 space-y-4">
-          <div v-if="filteredAvatarPlans.length > 0" class="space-y-2">
+          <div v-if="displayMode === 'byAvatar' && filteredAvatarPlans.length > 0" class="space-y-2">
             <div class="text-xs font-medium text-muted-foreground">
               角色材料
             </div>
@@ -299,6 +322,54 @@
               </div>
           </div>
 
+          <div v-if="displayMode === 'merged' && mergedMaterials.length > 0" class="space-y-2">
+            <div class="text-xs font-medium text-muted-foreground">
+              合并材料（所有角色）
+            </div>
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 p-1">
+              <Card
+                v-for="material in mergedMaterials"
+                :key="material.id"
+                class="relative border-l-4 border-r border-t border-b p-1 transition-all duration-300 shadow-none"
+                :class="material.shortage > 0 ? 'border-l-destructive bg-destructive/5 hover:bg-destructive/10' : 'border-l-green-500 bg-green-500/5 hover:bg-green-500/10'"
+              >
+                <CardContent class="p-2">
+                  <div class="flex items-start gap-2">
+                    <div class="relative size-10 flex-shrink-0">
+                      <img
+                        :src="getQualityBackground(material.rarity)"
+                        alt=""
+                        class="absolute inset-0 size-full rounded object-cover"
+                      >
+                      <CachedImage
+                        :src="material.icon_url"
+                        :alt="material.name"
+                        class="relative size-full rounded object-cover"
+                      />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="truncate font-medium text-xs leading-tight">
+                        {{ material.name }}
+                      </div>
+                      <div class="text-[10px] text-muted-foreground mt-0.5">
+                        拥有: {{ material.actualNum }}
+                      </div>
+                      <div class="text-[10px] text-muted-foreground">
+                        需要: {{ material.num }}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="text-[10px] font-medium mt-1.5 leading-tight text-center"
+                    :class="material.shortage > 0 ? 'text-destructive' : 'text-green-600'"
+                  >
+                    {{ material.shortage > 0 ? `缺少 ${material.shortage}` : '已充足' }}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
           <div v-if="filteredPlan.length > 0" class="space-y-2">
             <div class="text-xs font-medium text-muted-foreground">
               自定义材料
@@ -362,7 +433,7 @@
           </div>
 
           <div
-            v-if="filteredAvatarPlans.length === 0 && filteredPlan.length === 0"
+            v-if="filteredAvatarPlans.length === 0 && filteredPlan.length === 0 && mergedMaterials.length === 0"
             class="text-center text-muted-foreground py-8"
           >
             当前筛选下暂无材料
@@ -409,10 +480,12 @@ defineProps<{
   savedPlans: SavedPlan[]
   currentPlanId: string | null
   planFilter: 'all' | 'shortage'
+  displayMode: 'byAvatar' | 'merged'
   isPlanEmpty: boolean
   filteredAvatarPlans: AvatarPlanView[]
   avatarPlanLoading: Record<string, boolean>
   filteredPlan: PlanItem[]
+  mergedMaterials: AvatarPlanMaterialView[]
   getQualityBackground: (rarity: number | undefined) => string
   getWikiAvatarIconUrl: (avatar: WikiAvatarInfo) => string
 }>()
@@ -426,6 +499,7 @@ const emit = defineEmits<{
   (event: 'open-delete'): void
   (event: 'open-calculator'): void
   (event: 'set-filter', filter: 'all' | 'shortage'): void
+  (event: 'set-display-mode', mode: 'byAvatar' | 'merged'): void
   (event: 'avatar-plan-input', planId: string): void
   (event: 'remove-avatar-plan', planId: string): void
   (event: 'remove-plan-item', itemId: number): void
@@ -462,6 +536,10 @@ function handleOpenCalculator() {
 
 function handleSetFilter(filter: 'all' | 'shortage') {
   emit('set-filter', filter)
+}
+
+function handleSetDisplayMode(mode: 'byAvatar' | 'merged') {
+  emit('set-display-mode', mode)
 }
 
 function handleAvatarPlanInput(planId: string) {
