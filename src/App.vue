@@ -34,10 +34,12 @@
             :saved-plans="savedPlans"
             :current-plan-id="currentPlanId"
             :plan-filter="planFilter"
+            :display-mode="displayMode"
             :is-plan-empty="isPlanEmpty"
             :filtered-avatar-plans="filteredAvatarPlans"
             :avatar-plan-loading="avatarPlanLoading"
             :filtered-plan="filteredPlan"
+            :merged-materials="mergedMaterials"
             :get-quality-background="getQualityBackground"
             :get-wiki-avatar-icon-url="getWikiAvatarIconUrl"
             @create-plan="createNewPlan"
@@ -48,6 +50,7 @@
             @open-delete="openDeleteDialog"
             @open-calculator="showCalculatorDialog = true"
             @set-filter="setPlanFilter"
+            @set-display-mode="setDisplayMode"
             @avatar-plan-input="handleAvatarPlanInput"
             @remove-avatar-plan="removeAvatarPlan"
             @remove-plan-item="removeFromPlan"
@@ -197,6 +200,7 @@ const items = ref<OverallConsume[]>([])
 const cultivationPlan = ref<PlanItem[]>([])
 const avatarPlans = ref<AvatarPlan[]>([])
 const planFilter = ref<'all' | 'shortage'>('all')
+const displayMode = ref<'byAvatar' | 'merged'>('byAvatar')
 const loginPayload = ref<string | null>(null)
 const avatarPlanLoading = ref<Record<string, boolean>>({})
 
@@ -369,6 +373,57 @@ const filteredAvatarPlans = computed<AvatarPlanView[]>(() => {
     }
     return entry.displayMaterials.length > 0
   })
+})
+
+// 合并所有角色的材料
+const mergedMaterials = computed<AvatarPlanMaterialView[]>(() => {
+  const materialMap = new Map<number, AvatarPlanMaterialView>()
+  const materialConsumption = new Map<number, number>()
+
+  // 遍历所有角色计划
+  avatarPlans.value.forEach((plan) => {
+    const sourceMaterials = Array.isArray(plan.materials) ? plan.materials : []
+    sourceMaterials.forEach((material) => {
+      const inventoryItem = items.value.find(item => item.id === material.id)
+      const inventoryNum = inventoryItem?.actualNum ?? 0
+
+      // 获取该材料之前已经被消耗的数量
+      const previousConsumption = materialConsumption.get(material.id) ?? 0
+
+      if (materialMap.has(material.id)) {
+        // 如果材料已存在，累加需求数量
+        const existing = materialMap.get(material.id)!
+        existing.num += material.num
+
+        // 重新计算缺少数量
+        const actualNum = Math.max(0, inventoryNum - previousConsumption)
+        existing.shortage = Math.max(0, existing.num - actualNum)
+      }
+      else {
+        // 首次遇到该材料，创建新条目
+        const actualNum = Math.max(0, inventoryNum - previousConsumption)
+        const shortage = Math.max(0, material.num - actualNum)
+
+        materialMap.set(material.id, {
+          ...material,
+          actualNum,
+          shortage,
+        })
+      }
+
+      // 更新该材料的累计消耗量
+      materialConsumption.set(material.id, previousConsumption + material.num)
+    })
+  })
+
+  // 转换为数组并根据过滤条件筛选
+  const allMaterials = Array.from(materialMap.values())
+
+  if (planFilter.value === 'shortage') {
+    return allMaterials.filter(material => material.shortage > 0)
+  }
+
+  return allMaterials
 })
 
 const isPlanEmpty = computed(() => cultivationPlan.value.length === 0 && avatarPlans.value.length === 0)
@@ -758,6 +813,11 @@ function setPlanFilter(filter: 'all' | 'shortage') {
   localStorage.setItem('planFilter', filter)
 }
 
+function setDisplayMode(mode: 'byAvatar' | 'merged') {
+  displayMode.value = mode
+  localStorage.setItem('displayMode', mode)
+}
+
 function savePlanToStorage() {
   localStorage.setItem('cultivationPlan', JSON.stringify(cultivationPlan.value))
   localStorage.setItem(AVATAR_PLANS_KEY, JSON.stringify(avatarPlans.value))
@@ -773,6 +833,12 @@ function loadPlanFromStorage() {
   const savedFilter = localStorage.getItem('planFilter')
   if (savedFilter && (savedFilter === 'all' || savedFilter === 'shortage')) {
     planFilter.value = savedFilter as 'all' | 'shortage'
+  }
+
+  // 恢复展示模式
+  const savedDisplayMode = localStorage.getItem('displayMode')
+  if (savedDisplayMode && (savedDisplayMode === 'byAvatar' || savedDisplayMode === 'merged')) {
+    displayMode.value = savedDisplayMode as 'byAvatar' | 'merged'
   }
 
   // 加载所有已保存的计划

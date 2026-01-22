@@ -52,14 +52,22 @@
             <Card class="p-3 flex-shrink-0 mb-3">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-sm font-medium">快捷设置:</span>
-                <Button size="sm" variant="outline" @click="applyPreset('1-90-10')">
-                  90级 天赋10
+                <Button
+                  v-for="preset in presetStore.quickPresets"
+                  :key="preset.id"
+                  size="sm"
+                  variant="outline"
+                  @click="applyPresetFromStore(preset)"
+                >
+                  {{ preset.name }}
                 </Button>
-                <Button size="sm" variant="outline" @click="applyPreset('1-80-8')">
-                  80级 天赋8
-                </Button>
-                <Button size="sm" variant="outline" @click="applyPreset('1-70-6')">
-                  70级 天赋6
+                <Button
+                  size="sm"
+                  variant="outline"
+                  @click="showPresetManager = true"
+                >
+                  <i-mdi-cog class="mr-1" />
+                  管理预设
                 </Button>
               </div>
             </Card>
@@ -158,6 +166,12 @@
       </div>
     </DialogContent>
   </Dialog>
+
+  <!-- 预设管理对话框 -->
+  <PresetManageDialog
+    v-model:open="showPresetManager"
+    @apply-preset="applyPresetFromStore"
+  />
 </template>
 
 <script setup lang="ts">
@@ -172,6 +186,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import AvatarSelector from './AvatarSelector.vue'
 import AvatarConfigPanel from './AvatarConfigPanel.vue'
 import CachedImage from '@/components/common/CachedImage.vue'
+import PresetManageDialog from './PresetManageDialog.vue'
+import type { AvatarPreset } from '@/store/store'
+import { usePresetStore } from '@/store/store'
 
 // 导入品质背景图片
 import qualityNone from '@/assets/level_background/UI_QUALITY_NONE.png'
@@ -236,6 +253,10 @@ const calculationError = ref('')
 const previewMaterials = ref<CalculatedMaterial[]>([])
 const isPreviewCalculating = ref(false)
 let previewDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// 预设管理
+const presetStore = usePresetStore()
+const showPresetManager = ref(false)
 
 // 移除 onMounted 预加载，改为懒加载（在 watch(isOpen) 中触发）
 
@@ -339,25 +360,27 @@ function removeAvatar(avatarId: number) {
   }
 }
 
-// 应用预设
-function applyPreset(preset: string) {
-  const presets: Record<string, Partial<AvatarCalculatorConfig>> = {
-    '1-90-10': { levelFrom: 1, levelTo: 90, talentAFrom: 1, talentEFrom: 1, talentQFrom: 1, talentA: 10, talentE: 10, talentQ: 10 },
-    '1-80-8': { levelFrom: 1, levelTo: 80, talentAFrom: 1, talentEFrom: 1, talentQFrom: 1, talentA: 8, talentE: 8, talentQ: 8 },
-    '1-70-6': { levelFrom: 1, levelTo: 70, talentAFrom: 1, talentEFrom: 1, talentQFrom: 1, talentA: 6, talentE: 6, talentQ: 6 },
+// 应用预设（从 store）
+function applyPresetFromStore(preset: AvatarPreset) {
+  const config: Partial<AvatarCalculatorConfig> = {
+    levelFrom: preset.levelFrom,
+    levelTo: preset.levelTo,
+    talentAFrom: preset.talentAFrom,
+    talentEFrom: preset.talentEFrom,
+    talentQFrom: preset.talentQFrom,
+    talentA: preset.talentA,
+    talentE: preset.talentE,
+    talentQ: preset.talentQ,
   }
 
-  const config = presets[preset]
-  if (config) {
-    for (const avatar of selectedAvatars.value) {
-      avatarConfigs[avatar._id] = {
-        ...avatarConfigs[avatar._id],
-        ...config,
-      }
+  for (const avatar of selectedAvatars.value) {
+    avatarConfigs[avatar._id] = {
+      ...avatarConfigs[avatar._id],
+      ...config,
     }
-    // 应用预设后重新计算
-    triggerPreviewCalculation()
   }
+  // 应用预设后重新计算
+  triggerPreviewCalculation()
 }
 
 // 计算并添加材料
