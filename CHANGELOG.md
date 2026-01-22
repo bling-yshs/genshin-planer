@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-01-22
+
 ### Added
 
 - 新增预设管理系统，支持创建、编辑、删除自定义角色养成预设
@@ -62,7 +64,8 @@
 - 支持角色/武器材料计算
 - 支持养成计划管理
 
-[Unreleased]: https://github.com/bling-yshs/genshin-planer/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/bling-yshs/genshin-planner/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/bling-yshs/genshin-planner/commits/v0.1.1
 [0.1.0]: https://github.com/bling-yshs/genshin-planer/commits/v0.1.0
 [0.0.5]: https://github.com/bling-yshs/genshin-planer/commits/v0.0.5
 [0.0.5]: https://github.com/bling-yshs/genshin-planer/commits/v0.0.5
